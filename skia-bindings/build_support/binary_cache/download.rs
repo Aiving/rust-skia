@@ -19,6 +19,7 @@ pub fn resolve_dependencies() {
         return;
     }
 
+    
     // Not in a crate, assuming a git repo. Update all submodules.
     assert!(
         Command::new("git")
