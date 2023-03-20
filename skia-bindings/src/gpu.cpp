@@ -48,7 +48,7 @@ extern "C" SkSurface* C_SkSurface_MakeFromBackendRenderTarget(
 
 extern "C" SkSurface* C_SkSurface_MakeRenderTarget(
     GrRecordingContext* context,
-    SkBudgeted budgeted,
+    skgpu::Budgeted budgeted,
     const SkImageInfo* imageInfo,
     int sampleCount, GrSurfaceOrigin surfaceOrigin,
     const SkSurfaceProps* surfaceProps,
@@ -66,18 +66,17 @@ extern "C" SkSurface* C_SkSurface_MakeRenderTarget(
 extern "C" SkSurface* C_SkSurface_MakeRenderTarget2(
         GrRecordingContext* context,
         const SkSurfaceCharacterization& characterization,
-        SkBudgeted budgeted) {
+        skgpu::Budgeted budgeted) {
     return SkSurface::MakeRenderTarget(
             context,
             characterization,
             budgeted).release();
 }
 
-extern "C" void C_SkSurface_getBackendTexture(
+extern "C" GrBackendTexture* C_SkSurface_getBackendTexture(
         SkSurface* self,
-        SkSurface::BackendHandleAccess handleAccess,
-        GrBackendTexture* backendTexture) {
-    *backendTexture = self->getBackendTexture(handleAccess);
+        SkSurface::BackendHandleAccess handleAccess) {
+    return new GrBackendTexture(self->getBackendTexture(handleAccess));
 }
 
 extern "C" void C_SkSurface_getBackendRenderTarget(
@@ -140,16 +139,16 @@ extern "C" void C_GrBackendRenderTarget_getBackendFormat(const GrBackendRenderTa
 
 // GrBackendTexture
 
-extern "C" void C_GrBackendTexture_Construct(GrBackendTexture* uninitialized) {
-    new(uninitialized) GrBackendTexture();
+extern "C" GrBackendTexture* C_GrBackendTexture_New() {
+    return new GrBackendTexture();
 }
 
-extern "C" void C_GrBackendTexture_CopyConstruct(GrBackendTexture* uninitialized, const GrBackendTexture* texture) {
-    new(uninitialized) GrBackendTexture(*texture);
+extern "C" GrBackendTexture* C_GrBackendTexture_Clone(const GrBackendTexture* texture) {
+    return new GrBackendTexture(*texture);
 }
 
-extern "C" void C_GrBackendTexture_destruct(const GrBackendTexture* self) {
-    self->~GrBackendTexture();
+extern "C" void C_GrBackendTexture_delete(const GrBackendTexture* self) {
+    delete self;
 }
 
 extern "C" void C_GrBackendTexture_getBackendFormat(const GrBackendTexture* self, GrBackendFormat* format) {
@@ -184,6 +183,26 @@ extern "C" void C_GrBackendSurfaceMutableState_Construct(GrBackendSurfaceMutable
 
 extern "C" void C_GrBackendSurfaceMutableState_destruct(GrBackendSurfaceMutableState* self) {
     self->~GrBackendSurfaceMutableState();
+}
+
+//
+// gpu/MutableTextureState.h
+//
+
+extern "C" void C_MutableTextureState_Construct(skgpu::MutableTextureState* uninitialized) {
+    new(uninitialized)skgpu::MutableTextureState();
+}
+
+extern "C" void C_MutableTextureState_CopyConstruct(skgpu::MutableTextureState* uninitialized, const skgpu::MutableTextureState* state) {
+    new(uninitialized)skgpu::MutableTextureState(*state);
+}
+
+extern "C" void C_MutableTextureState_destruct(skgpu::MutableTextureState* self) {
+    self->~MutableTextureState();
+}
+
+extern "C" skgpu::BackendApi C_MutableTextureState_backend(const skgpu::MutableTextureState* self) {
+    return self->backend();
 }
 
 //
@@ -339,13 +358,12 @@ extern "C" SkImage *C_SkImage_MakeTextureFromCompressed(GrDirectContext *context
     return SkImage::MakeTextureFromCompressed(context, sp(data), width, height, type, mipMapped, prot).release();
 }
 
-extern "C" void C_SkImage_getBackendTexture(
+extern "C" GrBackendTexture* C_SkImage_getBackendTexture(
         const SkImage* self,
         bool flushPendingGrContextIO,
-        GrSurfaceOrigin* origin,
-        GrBackendTexture* result)
+        GrSurfaceOrigin* origin)
 {
-    *result = self->getBackendTexture(flushPendingGrContextIO, origin);
+    return new GrBackendTexture(self->getBackendTexture(flushPendingGrContextIO, origin));
 }
 
 extern "C" SkImage* C_SkImage_MakeFromTexture(
@@ -397,6 +415,6 @@ extern "C" SkImage* C_SkImage_makeTextureImage(
         const SkImage* self,
         GrDirectContext* context,
         GrMipMapped mipMapped,
-        SkBudgeted budgeted) {
+        skgpu::Budgeted budgeted) {
     return self->makeTextureImage(context, mipMapped, budgeted).release();
 }

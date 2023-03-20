@@ -4,10 +4,12 @@ use crate::{
     FontStyle, Typeface, Unichar,
 };
 use core::fmt;
+use sb::SkRefCnt;
 use skia_bindings::{self as sb, SkFontMgr, SkFontStyleSet, SkRefCntBase};
 use std::{ffi::CString, mem, os::raw::c_char};
 
 pub type FontStyleSet = RCHandle<SkFontStyleSet>;
+require_type_equality!(sb::SkFontStyleSet_INHERITED, sb::SkRefCnt);
 
 impl NativeBase<SkRefCntBase> for SkFontStyleSet {}
 
@@ -83,6 +85,7 @@ impl FontStyleSet {
 }
 
 pub type FontMgr = RCHandle<SkFontMgr>;
+require_type_equality!(sb::SkFontMgr_INHERITED, SkRefCnt);
 
 impl NativeBase<SkRefCntBase> for SkFontMgr {}
 
@@ -217,18 +220,18 @@ mod tests {
     fn create_all_typefaces() {
         let font_mgr = FontMgr::default();
         let families = font_mgr.count_families();
-        println!("FontMgr families: {}", families);
+        println!("FontMgr families: {families}");
         // test requires that the font manager returns at least one family for now.
         assert!(families > 0);
         // print all family names and styles
         for i in 0..families {
             let name = font_mgr.family_name(i);
-            println!("font_family: {}", name);
+            println!("font_family: {name}");
             let mut style_set = font_mgr.new_style_set(i);
             for style_index in 0..style_set.count() {
                 let (_, style_name) = style_set.style(style_index);
                 if let Some(style_name) = style_name {
-                    println!("  style: {}", style_name);
+                    println!("  style: {style_name}");
                 }
                 let face = style_set.new_typeface(style_index);
                 drop(face);

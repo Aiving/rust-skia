@@ -12,28 +12,28 @@ concurrency:
 
 jobs:
   macos-release-release:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features '
       shell: bash
       run: |
@@ -42,6 +42,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -57,44 +58,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -109,7 +110,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features '
       shell: bash
       run: |
@@ -118,6 +119,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -133,44 +135,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -185,7 +187,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features '
       shell: bash
       run: |
@@ -194,6 +196,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -209,44 +212,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -261,7 +264,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features '
       shell: bash
       run: |
@@ -270,6 +273,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -285,44 +289,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -337,7 +341,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features '
       shell: bash
       run: |
@@ -346,6 +350,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -361,44 +366,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -410,28 +415,28 @@ jobs:
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
   macos-release-release-gl:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features gl'
       shell: bash
       run: |
@@ -440,6 +445,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -455,44 +461,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "gl" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "gl" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -507,7 +513,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features gl'
       shell: bash
       run: |
@@ -516,6 +522,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -531,44 +538,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -583,7 +590,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features gl'
       shell: bash
       run: |
@@ -592,6 +599,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -607,44 +615,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -659,7 +667,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features gl'
       shell: bash
       run: |
@@ -668,6 +676,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -683,44 +692,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -735,7 +744,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features gl'
       shell: bash
       run: |
@@ -744,6 +753,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -759,44 +769,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -808,28 +818,28 @@ jobs:
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
   macos-release-release-vulkan:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features vulkan'
       shell: bash
       run: |
@@ -838,6 +848,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -853,44 +864,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "vulkan" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "vulkan" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "vulkan" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -905,7 +916,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features vulkan'
       shell: bash
       run: |
@@ -914,6 +925,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -929,44 +941,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "vulkan" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "vulkan" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "vulkan" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -981,7 +993,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features vulkan'
       shell: bash
       run: |
@@ -990,6 +1002,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1005,44 +1018,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "vulkan" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "vulkan" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "vulkan" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1057,7 +1070,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features vulkan'
       shell: bash
       run: |
@@ -1066,6 +1079,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1081,44 +1095,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "vulkan" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "vulkan" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "vulkan" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1133,7 +1147,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features vulkan'
       shell: bash
       run: |
@@ -1142,6 +1156,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1157,44 +1172,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "vulkan" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "vulkan" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "vulkan" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1206,28 +1221,28 @@ jobs:
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
   macos-release-release-textlayout:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features textlayout'
       shell: bash
       run: |
@@ -1236,6 +1251,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1251,44 +1267,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "textlayout" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "textlayout" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1303,7 +1319,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features textlayout'
       shell: bash
       run: |
@@ -1312,6 +1328,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1327,44 +1344,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1379,7 +1396,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features textlayout'
       shell: bash
       run: |
@@ -1388,6 +1405,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1403,44 +1421,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1455,7 +1473,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features textlayout'
       shell: bash
       run: |
@@ -1464,6 +1482,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1479,44 +1498,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1531,7 +1550,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features textlayout'
       shell: bash
       run: |
@@ -1540,6 +1559,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1555,44 +1575,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1604,28 +1624,28 @@ jobs:
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
   macos-release-release-gl-textlayout:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features gl,textlayout'
       shell: bash
       run: |
@@ -1634,6 +1654,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1649,44 +1670,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "gl,textlayout" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "gl,textlayout" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1701,7 +1722,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features gl,textlayout'
       shell: bash
       run: |
@@ -1710,6 +1731,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1725,44 +1747,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1777,7 +1799,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features gl,textlayout'
       shell: bash
       run: |
@@ -1786,6 +1808,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1801,44 +1824,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1853,7 +1876,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features gl,textlayout'
       shell: bash
       run: |
@@ -1862,6 +1885,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1877,44 +1901,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -1929,7 +1953,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features gl,textlayout'
       shell: bash
       run: |
@@ -1938,6 +1962,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -1953,44 +1978,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2001,29 +2026,29 @@ jobs:
         artifactErrorsFailBuild: true
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
-  macos-release-release-vulkan-textlayout:
-    runs-on: macos-11
+  macos-release-release-textlayout-vulkan:
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features textlayout,vulkan'
       shell: bash
       run: |
@@ -2032,6 +2057,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2047,44 +2073,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "textlayout,vulkan" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "textlayout,vulkan" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout,vulkan" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2099,7 +2125,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features textlayout,vulkan'
       shell: bash
       run: |
@@ -2108,6 +2134,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2123,44 +2150,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout,vulkan" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout,vulkan" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout,vulkan" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2175,7 +2202,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features textlayout,vulkan'
       shell: bash
       run: |
@@ -2184,6 +2211,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2199,44 +2227,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout,vulkan" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout,vulkan" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout,vulkan" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2251,7 +2279,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features textlayout,vulkan'
       shell: bash
       run: |
@@ -2260,6 +2288,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2275,44 +2304,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout,vulkan" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout,vulkan" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout,vulkan" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2327,7 +2356,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features textlayout,vulkan'
       shell: bash
       run: |
@@ -2336,6 +2365,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2351,44 +2381,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "textlayout,vulkan" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "textlayout,vulkan" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "textlayout,vulkan" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2399,29 +2429,29 @@ jobs:
         artifactErrorsFailBuild: true
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
-  macos-release-release-gl-vulkan-textlayout:
-    runs-on: macos-11
+  macos-release-release-gl-textlayout-vulkan:
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.13'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features gl,textlayout,vulkan'
       shell: bash
       run: |
@@ -2430,6 +2460,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2445,44 +2476,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2497,7 +2528,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features gl,textlayout,vulkan'
       shell: bash
       run: |
@@ -2506,6 +2537,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2521,44 +2553,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2573,7 +2605,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features gl,textlayout,vulkan'
       shell: bash
       run: |
@@ -2582,6 +2614,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2597,44 +2630,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2649,7 +2682,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features gl,textlayout,vulkan'
       shell: bash
       run: |
@@ -2658,6 +2691,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2673,44 +2707,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2725,7 +2759,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features gl,textlayout,vulkan'
       shell: bash
       run: |
@@ -2734,6 +2768,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2749,44 +2784,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2798,28 +2833,28 @@ jobs:
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
   macos-release-release-metal:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.14'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features metal'
       shell: bash
       run: |
@@ -2828,6 +2863,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2843,44 +2879,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "metal" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "metal" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2895,7 +2931,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features metal'
       shell: bash
       run: |
@@ -2904,6 +2940,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2919,44 +2956,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -2971,7 +3008,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features metal'
       shell: bash
       run: |
@@ -2980,6 +3017,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -2995,44 +3033,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3047,7 +3085,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features metal'
       shell: bash
       run: |
@@ -3056,6 +3094,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3071,44 +3110,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3123,7 +3162,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features metal'
       shell: bash
       run: |
@@ -3132,6 +3171,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3147,44 +3187,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3196,28 +3236,28 @@ jobs:
         token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
         prerelease: true
   macos-release-release-metal-textlayout:
-    runs-on: macos-11
+    runs-on: macos-12
     env:
       SKIA_DEBUG: 0
       MACOSX_DEPLOYMENT_TARGET: '10.14'
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
     - name: Install Rust
-      uses: hecrj/setup-rust-action@master
+      uses: hecrj/setup-rust-action@v1.4.0
       with:
         rust-version: stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-apple-darwin'
       shell: bash
       run: |
         rustup target add x86_64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features metal,textlayout'
       shell: bash
       run: |
@@ -3226,6 +3266,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-darwin26-clang
           export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3241,44 +3282,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "metal,textlayout" --all-targets --target x86_64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "metal,textlayout" --all-targets --target x86_64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal,textlayout" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3293,7 +3334,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-darwin
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features metal,textlayout'
       shell: bash
       run: |
@@ -3302,6 +3343,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-darwin26-clang
           export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3317,44 +3359,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal,textlayout" --all-targets --target aarch64-apple-darwin -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal,textlayout" --all-targets --target aarch64-apple-darwin -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal,textlayout" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-darwin
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3369,7 +3411,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios with features metal,textlayout'
       shell: bash
       run: |
@@ -3378,6 +3420,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios26-clang
           export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3393,44 +3436,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal,textlayout" --all-targets --target aarch64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal,textlayout" --all-targets --target aarch64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal,textlayout" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3445,7 +3488,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-apple-ios-sim
-    
+
     - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features metal,textlayout'
       shell: bash
       run: |
@@ -3454,6 +3497,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-apple-ios-sim26-clang
           export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3469,44 +3513,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal,textlayout" --all-targets --target aarch64-apple-ios-sim -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal,textlayout" --all-targets --target aarch64-apple-ios-sim -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal,textlayout" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-apple-ios-sim
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -3521,7 +3565,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-apple-ios
-    
+
     - name: 'Build all targets in skia-safe for x86_64-apple-ios with features metal,textlayout'
       shell: bash
       run: |
@@ -3530,6 +3574,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-apple-ios26-clang
           export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -3545,44 +3590,447 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "metal,textlayout" --all-targets --target x86_64-apple-ios -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "metal,textlayout" --all-targets --target x86_64-apple-ios -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "metal,textlayout" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-apple-ios
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: true
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: true
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
+      with:
+        owner: rust-skia
+        repo: skia-binaries
+        allowUpdates: true
+        replacesArtifacts: true
+        tag: '${{ env.SKIA_BINARIES_TAG }}'
+        artifacts: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+        artifactErrorsFailBuild: true
+        token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
+        prerelease: true
+  macos-release-release-gl-svg-textlayout:
+    runs-on: macos-12
+    env:
+      SKIA_DEBUG: 0
+      MACOSX_DEPLOYMENT_TARGET: '10.13'
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Install Rust
+      uses: hecrj/setup-rust-action@v1.4.0
+      with:
+        rust-version: stable
+
+    - name: Install Clippy
+      run: rustup component add clippy
+    - name: 'Install Rust target x86_64-apple-darwin'
+      shell: bash
+      run: |
+        rustup target add x86_64-apple-darwin
+
+    - name: 'Build all targets in skia-safe for x86_64-apple-darwin with features gl,svg,textlayout'
+      shell: bash
+      run: |
+        if [ "false" == "true" ]; then
+          TARGET=x86_64-apple-darwin
+          TARGET=${TARGET//-/_}
+          export CC_${TARGET}=x86_64-apple-darwin26-clang
+          export CXX_${TARGET}=x86_64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
+          TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
+          export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-darwin26-clang
+          echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
+        fi
+        if [ "false" == "true" ]; then
+          source /emsdk/emsdk_env.sh
+        fi
+        cargo clean
+        cargo build -p skia-safe --all-targets --release --features "gl,svg,textlayout" --target x86_64-apple-darwin
+        echo "SKIA_BINARIES_TAG=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/tag.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_BINARIES_KEY=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/key.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_STAGING_PATH=${BUILD_ARTIFACTSTAGINGDIRECTORY}" >> ${GITHUB_ENV}
+      env:
+        BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
+        EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
+
+    - name: 'Run Clippy'
+      shell: bash
+      if: true
+      run: |
+        cargo clippy --release --features "gl,svg,textlayout" --all-targets --target x86_64-apple-darwin -- -D warnings
+
+    - name: 'Test all workspace projects'
+      shell: bash
+      if: true
+      run: |
+        cargo test --all --release --features "gl,svg,textlayout" --all-targets --target x86_64-apple-darwin -- --nocapture
+
+    - name: 'Generate skia-org example images'
+      shell: bash
+      if: false
+      run: |
+        cargo run --release --features "gl,svg,textlayout" --target x86_64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
+
+    - name: 'Upload skia-org example images'
+      if: false
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: skia-org-images-x86_64-apple-darwin
+        path: ${{ env.SKIA_STAGING_PATH }}/skia-org
+
+    - name: 'Compress binaries'
+      if: true
+      uses: a7ul/tar-action@v1.1.2
+      with:
+        command: c
+        cwd: '${{ env.SKIA_STAGING_PATH }}'
+        files: 'skia-binaries'
+        outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+
+    - name: 'Release binaries'
+      if: true
+      uses: pragmatrix/release-action@v1.11.1-rs
+      with:
+        owner: rust-skia
+        repo: skia-binaries
+        allowUpdates: true
+        replacesArtifacts: true
+        tag: '${{ env.SKIA_BINARIES_TAG }}'
+        artifacts: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+        artifactErrorsFailBuild: true
+        token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
+        prerelease: true
+    - name: 'Install Rust target aarch64-apple-darwin'
+      shell: bash
+      run: |
+        rustup target add aarch64-apple-darwin
+
+    - name: 'Build all targets in skia-safe for aarch64-apple-darwin with features gl,svg,textlayout'
+      shell: bash
+      run: |
+        if [ "false" == "true" ]; then
+          TARGET=aarch64-apple-darwin
+          TARGET=${TARGET//-/_}
+          export CC_${TARGET}=aarch64-apple-darwin26-clang
+          export CXX_${TARGET}=aarch64-apple-darwin26-clang++
+          export AR_${TARGET}=llvm-ar
+          TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
+          export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-darwin26-clang
+          echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
+        fi
+        if [ "false" == "true" ]; then
+          source /emsdk/emsdk_env.sh
+        fi
+        cargo clean
+        cargo build -p skia-safe --all-targets --release --features "gl,svg,textlayout" --target aarch64-apple-darwin
+        echo "SKIA_BINARIES_TAG=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/tag.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_BINARIES_KEY=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/key.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_STAGING_PATH=${BUILD_ARTIFACTSTAGINGDIRECTORY}" >> ${GITHUB_ENV}
+      env:
+        BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
+        EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
+
+    - name: 'Run Clippy'
+      shell: bash
+      if: false
+      run: |
+        cargo clippy --release --features "gl,svg,textlayout" --all-targets --target aarch64-apple-darwin -- -D warnings
+
+    - name: 'Test all workspace projects'
+      shell: bash
+      if: false
+      run: |
+        cargo test --all --release --features "gl,svg,textlayout" --all-targets --target aarch64-apple-darwin -- --nocapture
+
+    - name: 'Generate skia-org example images'
+      shell: bash
+      if: false
+      run: |
+        cargo run --release --features "gl,svg,textlayout" --target aarch64-apple-darwin "${{ env.SKIA_STAGING_PATH }}/skia-org" 
+
+    - name: 'Upload skia-org example images'
+      if: false
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: skia-org-images-aarch64-apple-darwin
+        path: ${{ env.SKIA_STAGING_PATH }}/skia-org
+
+    - name: 'Compress binaries'
+      if: true
+      uses: a7ul/tar-action@v1.1.2
+      with:
+        command: c
+        cwd: '${{ env.SKIA_STAGING_PATH }}'
+        files: 'skia-binaries'
+        outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+
+    - name: 'Release binaries'
+      if: true
+      uses: pragmatrix/release-action@v1.11.1-rs
+      with:
+        owner: rust-skia
+        repo: skia-binaries
+        allowUpdates: true
+        replacesArtifacts: true
+        tag: '${{ env.SKIA_BINARIES_TAG }}'
+        artifacts: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+        artifactErrorsFailBuild: true
+        token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
+        prerelease: true
+    - name: 'Install Rust target aarch64-apple-ios'
+      shell: bash
+      run: |
+        rustup target add aarch64-apple-ios
+
+    - name: 'Build all targets in skia-safe for aarch64-apple-ios with features gl,svg,textlayout'
+      shell: bash
+      run: |
+        if [ "false" == "true" ]; then
+          TARGET=aarch64-apple-ios
+          TARGET=${TARGET//-/_}
+          export CC_${TARGET}=aarch64-apple-ios26-clang
+          export CXX_${TARGET}=aarch64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
+          TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
+          export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios26-clang
+          echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
+        fi
+        if [ "false" == "true" ]; then
+          source /emsdk/emsdk_env.sh
+        fi
+        cargo clean
+        cargo build -p skia-safe --all-targets --release --features "gl,svg,textlayout" --target aarch64-apple-ios
+        echo "SKIA_BINARIES_TAG=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/tag.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_BINARIES_KEY=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/key.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_STAGING_PATH=${BUILD_ARTIFACTSTAGINGDIRECTORY}" >> ${GITHUB_ENV}
+      env:
+        BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
+        EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
+
+    - name: 'Run Clippy'
+      shell: bash
+      if: false
+      run: |
+        cargo clippy --release --features "gl,svg,textlayout" --all-targets --target aarch64-apple-ios -- -D warnings
+
+    - name: 'Test all workspace projects'
+      shell: bash
+      if: false
+      run: |
+        cargo test --all --release --features "gl,svg,textlayout" --all-targets --target aarch64-apple-ios -- --nocapture
+
+    - name: 'Generate skia-org example images'
+      shell: bash
+      if: false
+      run: |
+        cargo run --release --features "gl,svg,textlayout" --target aarch64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
+
+    - name: 'Upload skia-org example images'
+      if: false
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: skia-org-images-aarch64-apple-ios
+        path: ${{ env.SKIA_STAGING_PATH }}/skia-org
+
+    - name: 'Compress binaries'
+      if: true
+      uses: a7ul/tar-action@v1.1.2
+      with:
+        command: c
+        cwd: '${{ env.SKIA_STAGING_PATH }}'
+        files: 'skia-binaries'
+        outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+
+    - name: 'Release binaries'
+      if: true
+      uses: pragmatrix/release-action@v1.11.1-rs
+      with:
+        owner: rust-skia
+        repo: skia-binaries
+        allowUpdates: true
+        replacesArtifacts: true
+        tag: '${{ env.SKIA_BINARIES_TAG }}'
+        artifacts: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+        artifactErrorsFailBuild: true
+        token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
+        prerelease: true
+    - name: 'Install Rust target aarch64-apple-ios-sim'
+      shell: bash
+      run: |
+        rustup target add aarch64-apple-ios-sim
+
+    - name: 'Build all targets in skia-safe for aarch64-apple-ios-sim with features gl,svg,textlayout'
+      shell: bash
+      run: |
+        if [ "false" == "true" ]; then
+          TARGET=aarch64-apple-ios-sim
+          TARGET=${TARGET//-/_}
+          export CC_${TARGET}=aarch64-apple-ios-sim26-clang
+          export CXX_${TARGET}=aarch64-apple-ios-sim26-clang++
+          export AR_${TARGET}=llvm-ar
+          TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
+          export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-apple-ios-sim26-clang
+          echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
+        fi
+        if [ "false" == "true" ]; then
+          source /emsdk/emsdk_env.sh
+        fi
+        cargo clean
+        cargo build -p skia-safe --all-targets --release --features "gl,svg,textlayout" --target aarch64-apple-ios-sim
+        echo "SKIA_BINARIES_TAG=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/tag.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_BINARIES_KEY=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/key.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_STAGING_PATH=${BUILD_ARTIFACTSTAGINGDIRECTORY}" >> ${GITHUB_ENV}
+      env:
+        BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
+        EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
+
+    - name: 'Run Clippy'
+      shell: bash
+      if: false
+      run: |
+        cargo clippy --release --features "gl,svg,textlayout" --all-targets --target aarch64-apple-ios-sim -- -D warnings
+
+    - name: 'Test all workspace projects'
+      shell: bash
+      if: false
+      run: |
+        cargo test --all --release --features "gl,svg,textlayout" --all-targets --target aarch64-apple-ios-sim -- --nocapture
+
+    - name: 'Generate skia-org example images'
+      shell: bash
+      if: false
+      run: |
+        cargo run --release --features "gl,svg,textlayout" --target aarch64-apple-ios-sim "${{ env.SKIA_STAGING_PATH }}/skia-org" 
+
+    - name: 'Upload skia-org example images'
+      if: false
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: skia-org-images-aarch64-apple-ios-sim
+        path: ${{ env.SKIA_STAGING_PATH }}/skia-org
+
+    - name: 'Compress binaries'
+      if: true
+      uses: a7ul/tar-action@v1.1.2
+      with:
+        command: c
+        cwd: '${{ env.SKIA_STAGING_PATH }}'
+        files: 'skia-binaries'
+        outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+
+    - name: 'Release binaries'
+      if: true
+      uses: pragmatrix/release-action@v1.11.1-rs
+      with:
+        owner: rust-skia
+        repo: skia-binaries
+        allowUpdates: true
+        replacesArtifacts: true
+        tag: '${{ env.SKIA_BINARIES_TAG }}'
+        artifacts: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+        artifactErrorsFailBuild: true
+        token: ${{ secrets.RUST_SKIA_RELEASE_TOKEN }}
+        prerelease: true
+    - name: 'Install Rust target x86_64-apple-ios'
+      shell: bash
+      run: |
+        rustup target add x86_64-apple-ios
+
+    - name: 'Build all targets in skia-safe for x86_64-apple-ios with features gl,svg,textlayout'
+      shell: bash
+      run: |
+        if [ "false" == "true" ]; then
+          TARGET=x86_64-apple-ios
+          TARGET=${TARGET//-/_}
+          export CC_${TARGET}=x86_64-apple-ios26-clang
+          export CXX_${TARGET}=x86_64-apple-ios26-clang++
+          export AR_${TARGET}=llvm-ar
+          TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
+          export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-apple-ios26-clang
+          echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
+        fi
+        if [ "false" == "true" ]; then
+          source /emsdk/emsdk_env.sh
+        fi
+        cargo clean
+        cargo build -p skia-safe --all-targets --release --features "gl,svg,textlayout" --target x86_64-apple-ios
+        echo "SKIA_BINARIES_TAG=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/tag.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_BINARIES_KEY=$(cat "${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/key.txt")" >> ${GITHUB_ENV}
+        echo "SKIA_STAGING_PATH=${BUILD_ARTIFACTSTAGINGDIRECTORY}" >> ${GITHUB_ENV}
+      env:
+        BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
+        EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
+
+    - name: 'Run Clippy'
+      shell: bash
+      if: false
+      run: |
+        cargo clippy --release --features "gl,svg,textlayout" --all-targets --target x86_64-apple-ios -- -D warnings
+
+    - name: 'Test all workspace projects'
+      shell: bash
+      if: false
+      run: |
+        cargo test --all --release --features "gl,svg,textlayout" --all-targets --target x86_64-apple-ios -- --nocapture
+
+    - name: 'Generate skia-org example images'
+      shell: bash
+      if: false
+      run: |
+        cargo run --release --features "gl,svg,textlayout" --target x86_64-apple-ios "${{ env.SKIA_STAGING_PATH }}/skia-org" 
+
+    - name: 'Upload skia-org example images'
+      if: false
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: skia-org-images-x86_64-apple-ios
+        path: ${{ env.SKIA_STAGING_PATH }}/skia-org
+
+    - name: 'Compress binaries'
+      if: true
+      uses: a7ul/tar-action@v1.1.2
+      with:
+        command: c
+        cwd: '${{ env.SKIA_STAGING_PATH }}'
+        files: 'skia-binaries'
+        outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
+
+    - name: 'Release binaries'
+      if: true
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia

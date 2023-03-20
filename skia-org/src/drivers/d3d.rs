@@ -1,8 +1,8 @@
 use crate::{artifact, drivers::DrawingDriver, Driver};
 use skia_safe::{
     gpu,
-    gpu::{d3d, Protected},
-    Budgeted, Canvas, ImageInfo, Surface,
+    gpu::{d3d, Budgeted, Protected},
+    Canvas, ImageInfo, Surface,
 };
 use std::{ffi, path::Path, ptr};
 use winapi::{
@@ -124,7 +124,7 @@ impl<T> ExpectOk<T> for Result<T, HRESULT> {
     fn expect_ok(self, msg: &str) -> T {
         match self {
             Ok(r) => r,
-            Err(hr) => panic!("{} failed. {:x}", msg, hr),
+            Err(hr) => panic!("{msg} failed. {hr:x}"),
         }
     }
 }

@@ -21,28 +21,31 @@ jobs:
     container: ghcr.io/pragmatrix/rust-skia-linux:latest
     env: 
       SKIA_DEBUG: 0
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
+    - name: Fix git dubious ownership errors when synchronizing Skia dependencies
+      run: git config --global --add safe.directory '*'
+
     - name: Prepare Rustup
       run: (cd /github/home && ln -s /root/.cargo)
-    
+
     - name: Update Rustup and Rust
       run: rustup update
-    
+
     - name: Configure Rust Toolchain
       run: rustup default stable
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-unknown-linux-gnu'
       shell: bash
       run: |
         rustup target add x86_64-unknown-linux-gnu
-    
+
     - name: 'Build all targets in skia-safe for x86_64-unknown-linux-gnu with features egl,gl,svg,textlayout,vulkan,wayland,webp,x11'
       shell: bash
       run: |
@@ -51,6 +54,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-unknown-linux-gnu26-clang
           export CXX_${TARGET}=x86_64-unknown-linux-gnu26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-unknown-linux-gnu26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -66,44 +70,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "egl,gl,svg,textlayout,vulkan,wayland,webp,x11" --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "egl,gl,svg,textlayout,vulkan,wayland,webp,x11" --all-targets --target x86_64-unknown-linux-gnu -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: true
       run: |
         cargo run --release --features "egl,gl,svg,textlayout,vulkan,wayland,webp,x11" --target x86_64-unknown-linux-gnu "${{ env.SKIA_STAGING_PATH }}/skia-org" --driver cpu --driver pdf --driver svg
-    
+
     - name: 'Upload skia-org example images'
       if: true
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-unknown-linux-gnu
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -118,7 +122,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-linux-android
-    
+
     - name: 'Build all targets in skia-safe for aarch64-linux-android with features gl,svg,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -127,6 +131,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-linux-android26-clang
           export CXX_${TARGET}=aarch64-linux-android26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-linux-android26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -142,44 +147,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target aarch64-linux-android -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target aarch64-linux-android -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,svg,textlayout,vulkan,webp" --target aarch64-linux-android "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-linux-android
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -194,7 +199,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-linux-android
-    
+
     - name: 'Build all targets in skia-safe for x86_64-linux-android with features gl,svg,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -203,6 +208,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-linux-android26-clang
           export CXX_${TARGET}=x86_64-linux-android26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-linux-android26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -218,44 +224,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target x86_64-linux-android -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target x86_64-linux-android -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,svg,textlayout,vulkan,webp" --target x86_64-linux-android "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-linux-android
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -270,7 +276,7 @@ jobs:
       shell: bash
       run: |
         rustup target add i686-linux-android
-    
+
     - name: 'Build all targets in skia-safe for i686-linux-android with features gl,svg,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -279,6 +285,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=i686-linux-android26-clang
           export CXX_${TARGET}=i686-linux-android26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=i686-linux-android26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -294,44 +301,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target i686-linux-android -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target i686-linux-android -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,svg,textlayout,vulkan,webp" --target i686-linux-android "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-i686-linux-android
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -346,7 +353,7 @@ jobs:
       shell: bash
       run: |
         rustup target add wasm32-unknown-emscripten
-    
+
     - name: 'Build all targets in skia-safe for wasm32-unknown-emscripten with features gl,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -355,6 +362,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=wasm32-unknown-emscripten26-clang
           export CXX_${TARGET}=wasm32-unknown-emscripten26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=wasm32-unknown-emscripten26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -370,44 +378,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan,webp" --all-targets --target wasm32-unknown-emscripten -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan,webp" --all-targets --target wasm32-unknown-emscripten -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan,webp" --target wasm32-unknown-emscripten "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-wasm32-unknown-emscripten
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -423,28 +431,31 @@ jobs:
     container: ghcr.io/pragmatrix/rust-skia-linux:latest
     env: 
       SKIA_DEBUG: 0
-    
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    
+
+    - name: Fix git dubious ownership errors when synchronizing Skia dependencies
+      run: git config --global --add safe.directory '*'
+
     - name: Prepare Rustup
       run: (cd /github/home && ln -s /root/.cargo)
-    
+
     - name: Update Rustup and Rust
       run: rustup update
-    
+
     - name: Configure Rust Toolchain
       run: rustup default beta
-    
+
     - name: Install Clippy
       run: rustup component add clippy
     - name: 'Install Rust target x86_64-unknown-linux-gnu'
       shell: bash
       run: |
         rustup target add x86_64-unknown-linux-gnu
-    
+
     - name: 'Build all targets in skia-safe for x86_64-unknown-linux-gnu with features egl,gl,svg,textlayout,vulkan,wayland,webp,x11'
       shell: bash
       run: |
@@ -453,6 +464,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-unknown-linux-gnu26-clang
           export CXX_${TARGET}=x86_64-unknown-linux-gnu26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-unknown-linux-gnu26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -468,44 +480,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: true
       run: |
         cargo clippy --release --features "egl,gl,svg,textlayout,vulkan,wayland,webp,x11" --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: true
       run: |
         cargo test --all --release --features "egl,gl,svg,textlayout,vulkan,wayland,webp,x11" --all-targets --target x86_64-unknown-linux-gnu -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "egl,gl,svg,textlayout,vulkan,wayland,webp,x11" --target x86_64-unknown-linux-gnu "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-unknown-linux-gnu
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -520,7 +532,7 @@ jobs:
       shell: bash
       run: |
         rustup target add aarch64-linux-android
-    
+
     - name: 'Build all targets in skia-safe for aarch64-linux-android with features gl,svg,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -529,6 +541,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=aarch64-linux-android26-clang
           export CXX_${TARGET}=aarch64-linux-android26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=aarch64-linux-android26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -544,44 +557,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target aarch64-linux-android -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target aarch64-linux-android -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,svg,textlayout,vulkan,webp" --target aarch64-linux-android "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-aarch64-linux-android
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -596,7 +609,7 @@ jobs:
       shell: bash
       run: |
         rustup target add x86_64-linux-android
-    
+
     - name: 'Build all targets in skia-safe for x86_64-linux-android with features gl,svg,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -605,6 +618,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=x86_64-linux-android26-clang
           export CXX_${TARGET}=x86_64-linux-android26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=x86_64-linux-android26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -620,44 +634,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target x86_64-linux-android -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target x86_64-linux-android -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,svg,textlayout,vulkan,webp" --target x86_64-linux-android "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-x86_64-linux-android
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -672,7 +686,7 @@ jobs:
       shell: bash
       run: |
         rustup target add i686-linux-android
-    
+
     - name: 'Build all targets in skia-safe for i686-linux-android with features gl,svg,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -681,6 +695,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=i686-linux-android26-clang
           export CXX_${TARGET}=i686-linux-android26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=i686-linux-android26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -696,44 +711,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target i686-linux-android -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,svg,textlayout,vulkan,webp" --all-targets --target i686-linux-android -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,svg,textlayout,vulkan,webp" --target i686-linux-android "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-i686-linux-android
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia
@@ -748,7 +763,7 @@ jobs:
       shell: bash
       run: |
         rustup target add wasm32-unknown-emscripten
-    
+
     - name: 'Build all targets in skia-safe for wasm32-unknown-emscripten with features gl,textlayout,vulkan,webp'
       shell: bash
       run: |
@@ -757,6 +772,7 @@ jobs:
           TARGET=${TARGET//-/_}
           export CC_${TARGET}=wasm32-unknown-emscripten26-clang
           export CXX_${TARGET}=wasm32-unknown-emscripten26-clang++
+          export AR_${TARGET}=llvm-ar
           TARGET_UPPERCASE=`echo "${TARGET}" | tr [a-z] [A-Z]`
           export CARGO_TARGET_${TARGET_UPPERCASE}_LINKER=wasm32-unknown-emscripten26-clang
           echo "Set CC, CXX, and CARGO_LINKER target specific environment variables for Android"
@@ -772,44 +788,44 @@ jobs:
       env:
         BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
         EMCC_CFLAGS: "-s ERROR_ON_UNDEFINED_SYMBOLS=0 -s MAX_WEBGL_VERSION=2"
-    
+
     - name: 'Run Clippy'
       shell: bash
       if: false
       run: |
         cargo clippy --release --features "gl,textlayout,vulkan,webp" --all-targets --target wasm32-unknown-emscripten -- -D warnings
-    
+
     - name: 'Test all workspace projects'
       shell: bash
       if: false
       run: |
         cargo test --all --release --features "gl,textlayout,vulkan,webp" --all-targets --target wasm32-unknown-emscripten -- --nocapture
-      
+
     - name: 'Generate skia-org example images'
       shell: bash
       if: false
       run: |
         cargo run --release --features "gl,textlayout,vulkan,webp" --target wasm32-unknown-emscripten "${{ env.SKIA_STAGING_PATH }}/skia-org" 
-    
+
     - name: 'Upload skia-org example images'
       if: false
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: skia-org-images-wasm32-unknown-emscripten
         path: ${{ env.SKIA_STAGING_PATH }}/skia-org
-    
+
     - name: 'Compress binaries'
       if: false
-      uses: master-atul/tar-action@v1.0.2
+      uses: a7ul/tar-action@v1.1.2
       with:
         command: c
         cwd: '${{ env.SKIA_STAGING_PATH }}'
         files: 'skia-binaries'
         outPath: '${{ runner.temp }}/skia-binaries-${{ env.SKIA_BINARIES_KEY }}.tar.gz'
-    
+
     - name: 'Release binaries'
       if: false
-      uses: pragmatrix/release-action@exp
+      uses: pragmatrix/release-action@v1.11.1-rs
       with:
         owner: marc2332
         repo: rust-skia

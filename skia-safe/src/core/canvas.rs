@@ -1,14 +1,14 @@
 #[cfg(feature = "gpu")]
 use crate::gpu;
 use crate::{
-    prelude::*, scalar, u8cpu, Bitmap, BlendMode, ClipOp, Color, Color4f, Data, Drawable,
-    FilterMode, Font, GlyphId, IPoint, IRect, ISize, Image, ImageFilter, ImageInfo, Matrix, Paint,
-    Path, Picture, Pixmap, Point, QuickReject, RRect, RSXform, Rect, Region, SamplingOptions,
-    Shader, Surface, SurfaceProps, TextBlob, TextEncoding, Vector, Vertices, M44,
+    prelude::*, scalar, Bitmap, BlendMode, ClipOp, Color, Color4f, Data, Drawable, FilterMode,
+    Font, GlyphId, IPoint, IRect, ISize, Image, ImageFilter, ImageInfo, Matrix, Paint, Path,
+    Picture, Pixmap, Point, QuickReject, RRect, RSXform, Rect, Region, SamplingOptions, Shader,
+    Surface, SurfaceProps, TextBlob, TextEncoding, Vector, Vertices, M44,
 };
 use skia_bindings::{
     self as sb, SkAutoCanvasRestore, SkCanvas, SkCanvas_SaveLayerRec, SkImageFilter, SkPaint,
-    SkRect,
+    SkRect, U8CPU,
 };
 use std::{
     convert::TryInto,
@@ -145,7 +145,7 @@ impl<'a> SaveLayerRec<'a> {
 
 /// Selects if an array of points are drawn as discrete points, as lines, or as an open polygon.
 pub use sb::SkCanvas_PointMode as PointMode;
-variant_name!(PointMode::Polygon, point_mode_naming);
+variant_name!(PointMode::Polygon);
 
 /// [`SrcRectConstraint`] controls the behavior at the edge of source [`Rect`], provided to
 /// [`Canvas::draw_image_rect()`] when there is any filtering. If kStrict is set, then extra code is
@@ -153,7 +153,7 @@ variant_name!(PointMode::Polygon, point_mode_naming);
 ///
 /// [`SrcRectConstraint::Strict`] disables the use of mipmaps and anisotropic filtering.
 pub use sb::SkCanvas_SrcRectConstraint as SrcRectConstraint;
-variant_name!(SrcRectConstraint::Fast, src_rect_constraint_naming);
+variant_name!(SrcRectConstraint::Fast);
 
 /// Provides access to Canvas's pixels.
 ///
@@ -873,7 +873,7 @@ impl Canvas {
 
     // The save_layer(bounds, paint) variants have been replaced by SaveLayerRec.
 
-    /// Saves [`Matrix`] and clip, and allocates [`Bitmap`] for subsequent drawing.
+    /// Saves [`Matrix`] and clip, and allocates [`Surface`] for subsequent drawing.
     ///
     /// Calling [`Self::restore()`] discards changes to [`Matrix`] and clip, and blends layer with
     /// alpha opacity onto prior layer.
@@ -886,7 +886,7 @@ impl Canvas {
     /// [`Rect`] bounds suggests but does not define layer size. To clip drawing to a specific
     /// rectangle, use [`Self::clip_rect()`].
     ///
-    /// alpha of zero is fully transparent, 255 is fully opaque.
+    /// alpha of zero is fully transparent, 1.0 is fully opaque.
     ///
     /// Call [`Self::restore_to_count()`] with result to restore this and subsequent saves.
     ///
@@ -895,19 +895,24 @@ impl Canvas {
     /// Returns depth of saved stack
     ///
     /// example: <https://fiddle.skia.org/c/@Canvas_saveLayerAlpha>
-    pub fn save_layer_alpha(&mut self, bounds: impl Into<Option<Rect>>, alpha: u8cpu) -> usize {
+    pub fn save_layer_alpha_f(&mut self, bounds: impl Into<Option<Rect>>, alpha: f32) -> usize {
         unsafe {
             self.native_mut()
-                .saveLayerAlpha(bounds.into().native().as_ptr_or_null(), alpha)
+                .saveLayerAlphaf(bounds.into().native().as_ptr_or_null(), alpha)
         }
         .try_into()
         .unwrap()
     }
 
-    /// Saves [`Matrix`] and clip, and allocates [`Bitmap`] for subsequent drawing.
+    /// Helper that accepts an int between 0 and 255, and divides it by 255.0
+    pub fn save_layer_alpha(&mut self, bounds: impl Into<Option<Rect>>, alpha: U8CPU) -> usize {
+        self.save_layer_alpha_f(bounds, alpha as f32 * (1.0 / 255.0))
+    }
+
+    /// Saves [`Matrix`] and clip, and allocates [`Surface`] for subsequent drawing.
     ///
     /// Calling [`Self::restore()`] discards changes to [`Matrix`] and clip,
-    /// and blends [`Bitmap`] with alpha opacity onto the prior layer.
+    /// and blends [`Surface`] with alpha opacity onto the prior layer.
     ///
     /// [`Matrix`] may be changed by [`Self::translate()`], [`Self::scale()`], [`Self::rotate()`],
     /// [`Self::skew()`], [`Self::concat()`], [`Self::set_matrix()`], and [`Self::reset_matrix()`].
@@ -2317,7 +2322,7 @@ pub mod lattice {
     /// Optional setting per rectangular grid entry to make it transparent,
     /// or to fill the grid entry with a color.
     pub use sb::SkCanvas_Lattice_RectType as RectType;
-    variant_name!(RectType::FixedColor, rect_type_naming);
+    variant_name!(RectType::FixedColor);
 }
 
 #[derive(Debug)]

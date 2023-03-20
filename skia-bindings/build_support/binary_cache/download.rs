@@ -23,7 +23,7 @@ pub fn resolve_dependencies() {
     // Not in a crate, assuming a git repo. Update all submodules.
     assert!(
         Command::new("git")
-            .args(&["submodule", "update", "--init", "--depth", "1"])
+            .args(["submodule", "update", "--init", "--depth", "1"])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()
@@ -57,16 +57,16 @@ fn download_dependencies() {
             .expect("metadata entry not found");
 
         // Remove unpacking directory, GitHub will format it to repo_name-hash
-        let unpack_dir = &PathBuf::from(format!("{}-{}", repo_name, short_hash));
+        let unpack_dir = &PathBuf::from(format!("{repo_name}-{short_hash}"));
         if unpack_dir.is_dir() {
             fs::remove_dir_all(unpack_dir).unwrap();
         }
 
         // Download
-        let archive_url = &format!("{}/{}", repo_url, short_hash);
-        println!("DOWNLOADING: {}", archive_url);
+        let archive_url = &format!("{repo_url}/{short_hash}");
+        println!("DOWNLOADING: {archive_url}");
         let archive = utils::download(archive_url)
-            .unwrap_or_else(|err| panic!("Failed to download {} ({})", archive_url, err));
+            .unwrap_or_else(|err| panic!("Failed to download {archive_url} ({err})"));
 
         // Unpack
         {
@@ -122,10 +122,14 @@ fn filter_skia(p: &Path) -> bool {
             Some(Component::Normal(name)) if name == OsStr::new("infra"))
 }
 
-// Need only `ninja` from `depot_tools/`.
+// Need only `ninja` and what `ninja.py` refers to from `depot_tools/`.
 // <https://github.com/rust-skia/rust-skia/pull/165>
 fn filter_depot_tools(p: &Path) -> bool {
-    p.to_str().unwrap().starts_with("ninja")
+    if p.components().count() != 1 {
+        return false;
+    }
+    let str = p.to_str().unwrap();
+    str.starts_with("ninja") || str.ends_with(".py")
 }
 
 impl binaries_config::BinariesConfiguration {
@@ -139,18 +143,15 @@ pub fn try_prepare_download(binaries_config: &binaries_config::BinariesConfigura
     env::force_skia_build() || {
         let force_download = env::force_skia_binaries_download();
         if let Some((tag, key)) = should_try_download_binaries(binaries_config, force_download) {
-            println!(
-                "TRYING TO DOWNLOAD AND INSTALL SKIA BINARIES: {}/{}",
-                tag, key
-            );
+            println!("TRYING TO DOWNLOAD AND INSTALL SKIA BINARIES: {tag}/{key}");
             let url = binaries::download_url(
                 env::skia_binaries_url().unwrap_or_else(env::skia_binaries_url_default),
                 tag,
                 key,
             );
-            println!("  FROM: {}", url);
+            println!("  FROM: {url}");
             if let Err(e) = download_and_install(url, &binaries_config.output_directory) {
-                println!("DOWNLOAD AND INSTALL FAILED: {}", e);
+                println!("DOWNLOAD AND INSTALL FAILED: {e}");
                 if force_download {
                     panic!("Downloading of binaries was forced but failed.")
                 }

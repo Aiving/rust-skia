@@ -1,5 +1,7 @@
-use crate::build_support::{android, cargo, features, ios};
+use super::platform;
+use crate::build_support::{cargo, features};
 use std::{
+    collections::HashSet,
     fs, io,
     path::{Path, PathBuf},
 };
@@ -19,7 +21,7 @@ pub mod lib {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BinariesConfiguration {
     /// The feature identifiers we built with.
-    pub feature_ids: Vec<String>,
+    pub feature_ids: HashSet<String>,
 
     /// The output directory of the libraries we build and we need to inform cargo about.
     pub output_directory: PathBuf,
@@ -69,60 +71,7 @@ impl BinariesConfiguration {
             ninja_built_libraries.push(lib::SK_RESOURCES.into());
         }
 
-        let mut link_libraries = Vec::new();
-
-        match target.as_strs() {
-            (_, "unknown", "linux", _) => {
-                link_libraries.extend(vec!["stdc++", "fontconfig", "freetype"]);
-                if features.gl {
-                    if features.egl {
-                        link_libraries.push("EGL");
-                    }
-
-                    if features.x11 {
-                        link_libraries.push("GL");
-                    }
-
-                    if features.wayland {
-                        link_libraries.push("wayland-egl");
-                        link_libraries.push("GLESv2");
-                    }
-                }
-            }
-            (_, "apple", "darwin", _) => {
-                link_libraries.extend(vec!["c++", "framework=ApplicationServices"]);
-                if features.gl {
-                    link_libraries.push("framework=OpenGL");
-                }
-                if features.metal {
-                    link_libraries.push("framework=Metal");
-                    // MetalKit was added in m87 BUILD.gn.
-                    link_libraries.push("framework=MetalKit");
-                    link_libraries.push("framework=Foundation");
-                }
-            }
-            (_, _, "windows", Some("msvc")) => {
-                link_libraries.extend(&["usp10", "ole32", "user32", "gdi32", "fontsub"]);
-                if features.gl {
-                    link_libraries.push("opengl32");
-                }
-                if features.d3d {
-                    link_libraries.extend(&["d3d12", "dxgi", "d3dcompiler"]);
-                }
-            }
-            (_, "linux", "android", _) | (_, "linux", "androideabi", _) => {
-                link_libraries.extend(android::link_libraries(features));
-            }
-            (_, "apple", "ios", abi) => {
-                link_libraries.extend(ios::link_libraries(abi, features));
-            }
-            ("wasm32", "unknown", "emscripten", _) => {
-                if features.gl {
-                    link_libraries.extend(["GL"]);
-                }
-            }
-            _ => panic!("unsupported target: {:?}", cargo::target()),
-        };
+        let link_libraries = platform::link_libraries(features, &target);
 
         let output_directory = cargo::output_directory()
             .join(SKIA_OUTPUT_DIR)
@@ -136,10 +85,7 @@ impl BinariesConfiguration {
         BinariesConfiguration {
             feature_ids: feature_ids.into_iter().map(|f| f.to_string()).collect(),
             output_directory,
-            link_libraries: link_libraries
-                .into_iter()
-                .map(|lib| lib.to_string())
-                .collect(),
+            link_libraries,
             ninja_built_libraries,
             binding_libraries,
             additional_files,
@@ -190,7 +136,7 @@ impl BinariesConfiguration {
         to_dir: &Path,
         copy_bindings_libraries: bool,
     ) -> io::Result<()> {
-        fs::create_dir_all(&to_dir)?;
+        fs::create_dir_all(to_dir)?;
 
         let target = cargo::target();
 

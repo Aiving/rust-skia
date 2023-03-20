@@ -1,7 +1,7 @@
 use crate::{
     prelude::*, scalar, Blender, Color, ColorChannel, ColorFilter, CubicResampler, IPoint, IRect,
-    ISize, Image, ImageFilter, Matrix, Paint, Picture, Point3, Rect, Region, SamplingOptions,
-    Shader, TileMode, Vector,
+    ISize, Image, ImageFilter, Matrix, Picture, Point3, Rect, Region, SamplingOptions, Shader,
+    TileMode, Vector,
 };
 use skia_bindings::{self as sb, SkImageFilter, SkImageFilters_CropRect};
 
@@ -353,12 +353,6 @@ pub fn offset(
     })
 }
 
-pub fn paint(paint: &Paint, crop_rect: impl Into<CropRect>) -> Option<ImageFilter> {
-    ImageFilter::from_ptr(unsafe {
-        sb::C_SkImageFilters_Paint(paint.native(), crop_rect.into().native())
-    })
-}
-
 pub fn picture<'a>(
     picture: impl Into<Picture>,
     target_rect: impl Into<Option<&'a Rect>>,
@@ -373,7 +367,7 @@ pub fn picture<'a>(
 }
 
 pub use skia_bindings::SkImageFilters_Dither as Dither;
-variant_name!(Dither::Yes, dither_naming);
+variant_name!(Dither::Yes);
 
 pub fn shader(shader: impl Into<Shader>, crop_rect: impl Into<CropRect>) -> Option<ImageFilter> {
     shader_with_dither(shader, Dither::No, crop_rect)
@@ -839,10 +833,6 @@ impl ImageFilter {
         offset(delta, self, crop_rect.into().map(|r| r.into()))
     }
 
-    pub fn from_paint<'a>(paint: &Paint, crop_rect: impl Into<Option<&'a IRect>>) -> Option<Self> {
-        self::paint(paint, crop_rect.into().map(|r| r.into()))
-    }
-
     pub fn from_picture<'a>(
         picture: impl Into<Picture>,
         crop_rect: impl Into<Option<&'a Rect>>,
@@ -879,15 +869,6 @@ impl ArithmeticFPInputs {
     }
 }
 
-impl Paint {
-    pub fn as_image_filter<'a>(
-        &self,
-        crop_rect: impl Into<Option<&'a IRect>>,
-    ) -> Option<ImageFilter> {
-        paint(self, crop_rect.into().map(|r| r.into()))
-    }
-}
-
 impl Picture {
     pub fn as_image_filter<'a>(
         &self,
@@ -917,7 +898,9 @@ mod tests {
     fn test_crop_conversion_options() {
         assert_eq!(cr(None), CropRect::NO_CROP_RECT);
         assert_eq!(cr(CropRect::NO_CROP_RECT), CropRect::NO_CROP_RECT);
-        assert_eq!(cr(&CropRect::NO_CROP_RECT), CropRect::NO_CROP_RECT);
+        #[allow(clippy::needless_borrow)]
+        let cr_ref = cr(&CropRect::NO_CROP_RECT);
+        assert_eq!(cr_ref, CropRect::NO_CROP_RECT);
         let irect = IRect {
             left: 1,
             top: 2,
@@ -925,7 +908,9 @@ mod tests {
             bottom: 4,
         };
         assert_eq!(cr(irect), CropRect(Rect::from(irect)));
-        assert_eq!(cr(&irect), CropRect(Rect::from(irect)));
+        #[allow(clippy::needless_borrow)]
+        let cr_by_ref = cr(&irect);
+        assert_eq!(cr_by_ref, CropRect(Rect::from(irect)));
         let rect = Rect {
             left: 1.0,
             top: 2.0,
@@ -933,6 +918,8 @@ mod tests {
             bottom: 4.0,
         };
         assert_eq!(cr(rect), CropRect(rect));
-        assert_eq!(cr(&rect), CropRect(rect));
+        #[allow(clippy::needless_borrow)]
+        let cr_by_ref = cr(&rect);
+        assert_eq!(cr_by_ref, CropRect(rect));
     }
 }

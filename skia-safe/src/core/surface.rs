@@ -8,23 +8,18 @@ use skia_bindings::{self as sb, SkRefCntBase, SkSurface};
 use std::{fmt, ptr};
 
 pub use skia_bindings::SkSurface_ContentChangeMode as ContentChangeMode;
-variant_name!(ContentChangeMode::Retain, content_change_mode_naming);
+variant_name!(ContentChangeMode::Retain);
 
 #[cfg(feature = "gpu")]
 pub use skia_bindings::SkSurface_BackendHandleAccess as BackendHandleAccess;
 #[cfg(feature = "gpu")]
-variant_name!(
-    BackendHandleAccess::FlushWrite,
-    backend_handle_access_naming
-);
+variant_name!(BackendHandleAccess::FlushWrite);
 
 pub use skia_bindings::SkSurface_BackendSurfaceAccess as BackendSurfaceAccess;
-variant_name!(
-    BackendSurfaceAccess::Present,
-    surface_backend_surface_access_naming
-);
+variant_name!(BackendSurfaceAccess::Present);
 
 pub type Surface = RCHandle<SkSurface>;
+require_type_equality!(sb::SkSurface_INHERITED, sb::SkRefCnt);
 
 impl NativeRefCountedBase for SkSurface {
     type Base = SkRefCntBase;
@@ -138,7 +133,7 @@ impl Surface {
 
     pub fn new_render_target(
         context: &mut gpu::RecordingContext,
-        budgeted: crate::Budgeted,
+        budgeted: gpu::Budgeted,
         image_info: &ImageInfo,
         sample_count: impl Into<Option<usize>>,
         surface_origin: impl Into<Option<gpu::SurfaceOrigin>>,
@@ -163,7 +158,7 @@ impl Surface {
     pub fn new_render_target_with_characterization(
         context: &mut gpu::RecordingContext,
         characterization: &SurfaceCharacterization,
-        budgeted: crate::Budgeted,
+        budgeted: gpu::Budgeted,
     ) -> Option<Self> {
         Self::from_ptr(unsafe {
             sb::C_SkSurface_MakeRenderTarget2(
@@ -290,14 +285,8 @@ impl Surface {
         handle_access: BackendHandleAccess,
     ) -> Option<gpu::BackendTexture> {
         unsafe {
-            let mut backend_texture = construct(|bt| sb::C_GrBackendTexture_Construct(bt));
-            sb::C_SkSurface_getBackendTexture(
-                self.native_mut(),
-                handle_access,
-                &mut backend_texture as _,
-            );
-
-            gpu::BackendTexture::from_native_if_valid(backend_texture)
+            let ptr = sb::C_SkSurface_getBackendTexture(self.native_mut(), handle_access);
+            gpu::BackendTexture::from_native_if_valid(ptr)
         }
     }
 
@@ -499,7 +488,7 @@ impl Surface {
     pub fn flush_with_mutable_state<'a>(
         &mut self,
         info: &gpu::FlushInfo,
-        new_state: impl Into<Option<&'a gpu::BackendSurfaceMutableState>>,
+        new_state: impl Into<Option<&'a gpu::MutableTextureState>>,
     ) -> gpu::SemaphoresSubmitted {
         unsafe {
             self.native_mut()

@@ -3,9 +3,10 @@ use skia_bindings::{self as sb, SkPixelGeometry, SkSurfaceProps};
 use std::fmt;
 
 // TODO: use the enum rewriter and strip underscores?
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 #[repr(i32)]
 pub enum PixelGeometry {
+    #[default]
     Unknown = SkPixelGeometry::kUnknown_SkPixelGeometry as _,
     RGBH = SkPixelGeometry::kRGB_H_SkPixelGeometry as _,
     BGRH = SkPixelGeometry::kBGR_H_SkPixelGeometry as _,
@@ -33,16 +34,12 @@ impl PixelGeometry {
     }
 }
 
-impl Default for PixelGeometry {
-    fn default() -> Self {
-        PixelGeometry::Unknown
-    }
-}
-
 bitflags! {
     pub struct SurfacePropsFlags: u32 {
+        #[allow(clippy::unnecessary_cast)]
         const USE_DEVICE_INDEPENDENT_FONTS =
             sb::SkSurfaceProps_Flags_kUseDeviceIndependentFonts_Flag as u32;
+        #[allow(clippy::unnecessary_cast)]
         const DYNAMIC_MSAA =
             sb::SkSurfaceProps_Flags_kDynamicMSAA_Flag as u32;
     }

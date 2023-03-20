@@ -1,7 +1,6 @@
-# Publishes skia-bindings and skia-safe to crates.io
-# This is temporary and should be automated.
-# prerequisites:
-#   .cargo/credentials
+doc-features-win="gl,vulkan,d3d,textlayout,webp"
+doc-features-mac="gl,vulkan,metal,textlayout,webp"
+doc-features-docs-rs="gl,textlayout,webp"
 
 .PHONY: all
 all:
@@ -31,8 +30,13 @@ crate-bindings-binaries:
 .PHONY: crate-bindings-build
 crate-bindings-build: export FORCE_SKIA_BUILD=1
 crate-bindings-build: 
-	cd skia-bindings && cargo publish -vv --dry-run --features "gl,vulkan,textlayout,d3d"
+	cd skia-bindings && cargo publish -vv --dry-run --features "gl,vulkan,textlayout"
 	cd skia-bindings && cargo publish -vv --dry-run 
+
+# Publishes skia-bindings and skia-safe to crates.io
+# This is temporary and should be automated.
+# prerequisites:
+#   .cargo/credentials
 
 .PHONY: publish
 publish: package-bindings package-safe publish-bindings wait publish-safe
@@ -74,14 +78,12 @@ wait:
 	@echo "published a package, Waiting for crates.io to catch up before publishing the next"
 	sleep 20
 
-doc-features-win="gl,vulkan,d3d,textlayout,webp"
-
 .PHONY: update-doc
 update-doc:
 	cargo clean
 	rm -rf rust-skia.github.io
 	git clone git@github.com:rust-skia/rust-skia.github.io.git
-	cd skia-safe && cargo doc --no-deps --lib --features ${doc-features-win}
+	cd skia-safe && cargo doc --no-deps --lib --features ${doc-features-mac}
 	cp -r target/doc rust-skia.github.io/
 	cd rust-skia.github.io && git add --all
 	cd rust-skia.github.io && git commit -m"Auto-Update of /doc" || true

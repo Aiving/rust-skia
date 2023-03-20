@@ -29,7 +29,7 @@ pub fn render_frame(
 
     let size = {
         let dim = canvas.image_info().dimensions();
-        min(dim.width, dim.height) as i32
+        min(dim.width, dim.height)
     };
 
     let center = (size / 2, size / 2);
@@ -288,7 +288,7 @@ fn triangle(
                         (0.420 * side, 0.50 * side)
                     }
                 }
-                i => panic!("Invalid vertex index {} for triangle.", i),
+                i => panic!("Invalid vertex index {i} for triangle."),
             };
             gradient(&mut paint, center, radii, (color, Color::from(0x00_0000ff)))
         }

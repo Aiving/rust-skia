@@ -137,7 +137,7 @@ mod docs {
 }
 
 mod effects {
-    use skia_safe::{image_filters, runtime_effect, RuntimeEffect};
+    use skia_safe::{gradient_shader, image_filters, runtime_effect, RuntimeEffect};
     use static_assertions::*;
 
     assert_impl_all!(runtime_effect::Uniform: Send, Sync);
@@ -147,6 +147,7 @@ mod effects {
     assert_impl_all!(runtime_effect::Options: Send, Sync);
     assert_impl_all!(image_filters::CropRect: Send, Sync);
     assert_impl_all!(image_filters::Dither: Send, Sync);
+    assert_impl_all!(gradient_shader::Interpolation: Send, Sync);
 }
 
 #[cfg(feature = "gpu")]
@@ -168,6 +169,8 @@ mod gpu {
     // gpu/yuva_backend_textures.rs
     assert_impl_all!(YUVABackendTextureInfo: Send, Sync);
     assert_impl_all!(YUVABackendTextures: Send, Sync);
+    assert_impl_all!(MutableTextureState: Send, Sync);
+    assert_impl_all!(BackendApi: Send, Sync);
 
     #[cfg(feature = "gl")]
     mod gl {

@@ -9,20 +9,21 @@ keywords = ["skia", "rust-bindings", "vulkan", "opengl", "pdf"]
 categories = ["external-ffi-bindings", "graphics", "multimedia::images", "rendering::graphics-api", "visualization"]
 license = "MIT"
 
-version = "0.54.0"
+version = "0.60.0"
 authors = ["LongYinan <lynweklm@gmail.com>", "Armin Sander <armin@replicator.org>"]
 edition = "2021"
 build = "build.rs"
 links = "skia"
-include = [ 
-	"Cargo.toml", 
-	"build.rs", 
-	"build_support.rs", 
-	"build_support/**/*.rs", 
-	"src/**/*.h", 
-	"src/**/*.cpp", 
-	"src/defaults.rs", 
-	"src/icu.rs", 
+include = [
+	"Cargo.toml",
+	# "bindings_docs.rs",
+	"build.rs",
+	"build_support.rs",
+	"build_support/**/*.rs",
+	"src/**/*.h",
+	"src/**/*.cpp",
+	"src/defaults.rs",
+	"src/icu.rs",
 	"src/impls.rs",
 	"src/lib.rs" ]
 
@@ -32,8 +33,8 @@ doctest = false
 # Metadata used from inside the packaged crate that defines where to download skia and depot_tools archives from.
 # Note: use short hashes here because of filesystem path size restrictions.
 [package.metadata]
-skia = "m105-0.53.3"
-depot_tools = "fade894"
+skia = "m111-0.59.0"
+depot_tools = "73a2624"
 
 [features]
 default = ["binary-cache", "embed-icudtl"]
@@ -63,7 +64,7 @@ lazy_static = { version = "1.4.0", optional = true }
 
 [build-dependencies]
 cc = "1.0.37"
-bindgen = "0.60.1"
+bindgen = "0.64.0"
 
 # For enum variant name replacements.
 regex = "1.4.5"
@@ -78,4 +79,16 @@ tar = { version = "0.4.26", optional = true }
 # the matching prebuilt binaries.
 serde_json = "1.0.39"
 # For reading Cargo.toml from within a package.
-toml = "0.5.1"
+toml = "0.7.0"
+
+[dev-dependencies]
+# build dependencies duplicated for testing :(
+cc = "1.0.37"
+bindgen = "0.64.0"
+regex = "1.4.5"
+heck = "0.4.0"
+ureq = { version = "2.0.1" }
+flate2 = { version = "1.0.7" }
+tar = { version = "0.4.26" }
+serde_json = "1.0.39"
+toml = "0.7.0"
