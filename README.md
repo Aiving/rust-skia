@@ -2,12 +2,12 @@
 
 [![crates.io](https://img.shields.io/crates/v/skia-safe)](https://crates.io/crates/skia-safe) [![license](https://img.shields.io/crates/l/skia-safe)](LICENSE) [![Windows QA](https://github.com/rust-skia/rust-skia/actions/workflows/windows-qa.yaml/badge.svg?branch=master)](https://github.com/rust-skia/rust-skia/actions/workflows/windows-qa.yaml) [![Linux QA](https://github.com/rust-skia/rust-skia/actions/workflows/linux-qa.yaml/badge.svg?branch=master)](https://github.com/rust-skia/rust-skia/actions/workflows/linux-qa.yaml) [![macOS QA](https://github.com/rust-skia/rust-skia/actions/workflows/macos-qa.yaml/badge.svg?branch=master)](https://github.com/rust-skia/rust-skia/actions/workflows/macos-qa.yaml)
 
-Skia Submodule Status: chrome/m111 ([upstream changes][skia-upstream], [our changes][skia-ours]).
+Skia Submodule Status: chrome/m114 ([upstream changes][skia-upstream], [our changes][skia-ours]).
 
-[skia-upstream]: https://github.com/rust-skia/skia/compare/m111-0.59.0..google:chrome/m111
-[skia-ours]: https://github.com/google/skia/compare/chrome/m111...rust-skia:m111-0.59.0
+[skia-upstream]: https://github.com/rust-skia/skia/compare/m114-0.62.3...google:chrome/m114
+[skia-ours]: https://github.com/google/skia/compare/chrome/m114...rust-skia:m114-0.62.3
 
-## Goals
+## About
 
 This project provides _up to date_ safe bindings that bridge idiomatic Rust with Skia's C++ API on desktop and mobile platforms, including GPU rendering backends for [Vulkan](<https://en.wikipedia.org/wiki/Vulkan_(API)>), [Metal](<https://en.wikipedia.org/wiki/Metal_(API)>), [OpenGL](https://en.wikipedia.org/wiki/OpenGL), and [Direct3D](https://en.wikipedia.org/wiki/Direct3D).
 
@@ -21,14 +21,13 @@ We (slowly) [add more documentation](https://github.com/rust-skia/rust-skia/issu
 
 ### Crate
 
-A prerelease crate is available from [crates.io](https://crates.io/crates/skia-safe) and adding
+A prerelease crate is available from [crates.io](https://crates.io/crates/skia-safe) and invoking
 
-```toml
-[dependencies]
-skia-safe = "0"
+```bash
+cargo add skia-safe
 ```
 
-to your `Cargo.toml` should get you started.
+in your project's folder should get you started. And you might want to take a look at the [gl-window](https://github.com/rust-skia/rust-skia/tree/master/skia-safe/examples/gl-window) example if you plan to render to a window.
 
 **On Linux** you may run into trouble when **OpenSSL libraries** are missing. On **Debian** and **Ubuntu** they can be installed with:
 

@@ -33,6 +33,13 @@ crate-bindings-build:
 	cd skia-bindings && cargo publish -vv --dry-run --features "gl,vulkan,textlayout"
 	cd skia-bindings && cargo publish -vv --dry-run 
 
+.PHONY: crate-post-release-test
+crate-post-release-test:
+	rm -rf /tmp/skia-test
+	cd /tmp && cargo new skia-test
+	cd /tmp/skia-test && cargo add skia-safe
+	cd /tmp/skia-test && cargo run
+
 # Publishes skia-bindings and skia-safe to crates.io
 # This is temporary and should be automated.
 # prerequisites:
@@ -42,7 +49,7 @@ crate-bindings-build:
 publish: package-bindings package-safe publish-bindings wait publish-safe
 
 .PHONY: publish-only
-publish-only: publish-bindings wait publish-safe
+publish-only: publish-bindings publish-safe
 
 .PHONY: publish-bindings
 publish-bindings:
@@ -71,12 +78,6 @@ package-safe:
 .PHONY: clean-packages
 clean-packages:
 	rm -rf target/package
-
-
-.PHONY: wait
-wait: 
-	@echo "published a package, Waiting for crates.io to catch up before publishing the next"
-	sleep 20
 
 .PHONY: update-doc
 update-doc:
@@ -135,3 +136,18 @@ build-local-build:
 	cargo clean
 	SKIA_SOURCE_DIR=$(shell pwd)/skia-bindings/skia SKIA_BUILD_DEFINES=`cat tmp/skia-defines.txt` SKIA_LIBRARY_SEARCH_PATH=$(shell pwd)/tmp cargo build --release --no-default-features -vv --features ${local-build-features}
 
+# Diffs the rust skia commits of the current branch with what is commited to the master branch.
+rust-skia-logs = git log --oneline | head -n 1000 | grep rust-skia | cut -d' ' -f2-
+.PHONY: diff-skia
+diff-skia:
+	rm -rf /tmp/rust-skia-cmp
+	git clone . /tmp/rust-skia-cmp
+	cd /tmp/rust-skia-cmp && git checkout master && git submodule update --init
+	cd /tmp/rust-skia-cmp/skia-bindings/skia && ${rust-skia-logs} >/tmp/rust-skia-cmp-master.txt
+	cd skia-bindings/skia && ${rust-skia-logs} >/tmp/rust-skia-cmp-current.txt
+	diff /tmp/rust-skia-cmp-master.txt /tmp/rust-skia-cmp-current.txt
+
+# Diffs the public skia-safe API with the latest on crates.io using cargo public-api
+.PHONY: diff-api
+diff-api:
+	cargo public-api -p skia-safe -s --features=all-macos diff latest -- >skia-safe-api.diff

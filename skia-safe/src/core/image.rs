@@ -1,30 +1,192 @@
 #[cfg(feature = "gpu")]
 use crate::gpu;
-use crate::SurfaceProps;
 use crate::{
     prelude::*, AlphaType, Bitmap, ColorSpace, ColorType, Data, EncodedImageFormat, IPoint, IRect,
     ISize, ImageFilter, ImageGenerator, ImageInfo, Matrix, Paint, Picture, Pixmap, SamplingOptions,
-    Shader, TileMode,
+    Shader, SurfaceProps, TextureCompressionType, TileMode,
 };
 use skia_bindings::{self as sb, SkImage, SkRefCntBase};
-use std::{fmt, mem, ptr};
+use std::{fmt, ptr};
 
 pub use super::CubicResampler;
 
-/// Experimental:
-///   Skia                | GL_COMPRESSED_*     | MTLPixelFormat*      | VK_FORMAT_*_BLOCK
-///  --------------------------------------------------------------------------------------
-///   kETC2_RGB8_UNORM    | ETC1_RGB8           | ETC2_RGB8 (iOS-only) | ETC2_R8G8B8_UNORM
-///                       | RGB8_ETC2           |                      |
-///  --------------------------------------------------------------------------------------
-///   kBC1_RGB8_UNORM     | RGB_S3TC_DXT1_EXT   | N/A                  | BC1_RGB_UNORM
-///  --------------------------------------------------------------------------------------
-///   kBC1_RGBA8_UNORM    | RGBA_S3TC_DXT1_EXT  | BC1_RGBA (macOS-only)| BC1_RGBA_UNORM
-pub use skia_bindings::SkImage_CompressionType as CompressionType;
-variant_name!(CompressionType::BC1_RGBA8_UNORM);
+#[deprecated(since = "0.62.0", note = "Use TextureCompressionType")]
+pub use crate::TextureCompressionType as CompressionType;
 
-pub use skia_bindings::SkImage_BitDepth as BitDepth;
-variant_name!(BitDepth::F16);
+#[deprecated(since = "0.63.0", note = "Use images::BitDepth")]
+pub use images::BitDepth;
+
+pub mod images {
+    #[allow(unused)] // doc only
+    use crate::ColorType;
+    use crate::{
+        prelude::*, AlphaType, Bitmap, ColorSpace, Data, ISize, Image, ImageGenerator, ImageInfo,
+        Matrix, Paint, Picture, SurfaceProps, TextureCompressionType,
+    };
+    use skia_bindings as sb;
+    use std::{mem, ptr};
+
+    /// Creates a CPU-backed [`Image`] from `bitmap`, sharing or copying `bitmap` pixels. If the bitmap
+    /// is marked immutable, and its pixel memory is shareable, it may be shared
+    /// instead of copied.
+    ///
+    /// [`Image`] is returned if bitmap is valid. Valid [`Bitmap`] parameters include:
+    /// dimensions are greater than zero;
+    /// each dimension fits in 29 bits;
+    /// [`ColorType`] and [`AlphaType`] are valid, and [`ColorType`] is not [`ColorType::Unknown`];
+    /// row bytes are large enough to hold one row of pixels;
+    /// pixel address is not `None`.
+    ///
+    /// * `bitmap` - [`ImageInfo`], row bytes, and pixels
+    /// Returns: created [`Image`], or `None`
+
+    pub fn raster_from_bitmap(bitmap: &Bitmap) -> Option<Image> {
+        Image::from_ptr(unsafe { sb::C_SkImages_RasterFromBitmap(bitmap.native()) })
+    }
+
+    /// Creates a CPU-backed [`Image`] from compressed data.
+    ///
+    /// This method will decompress the compressed data and create an image wrapping
+    /// it. Any mipmap levels present in the compressed data are discarded.
+    ///
+    /// * `data` - compressed data to store in [`Image`]
+    /// * `dimension` - width and height of full [`Image`]
+    /// * `ty` - type of compression used
+    /// Returns: created [`Image`], or `None`
+    pub fn raster_from_compressed_texture_data(
+        data: impl Into<Data>,
+        dimensions: impl Into<ISize>,
+        ty: TextureCompressionType,
+    ) -> Option<Image> {
+        let dimensions = dimensions.into();
+        Image::from_ptr(unsafe {
+            sb::C_SkImages_RasterFromCompressedTextureData(
+                data.into().into_ptr(),
+                dimensions.width,
+                dimensions.height,
+                ty,
+            )
+        })
+    }
+
+    /// Return a [`Image`] using the encoded data, but attempts to defer decoding until the
+    /// image is actually used/drawn. This deferral allows the system to cache the result, either on the
+    /// CPU or on the GPU, depending on where the image is drawn. If memory is low, the cache may
+    /// be purged, causing the next draw of the image to have to re-decode.
+    ///
+    /// If `alpha_type` is `None`, the image's alpha type will be chosen automatically based on the
+    /// image format. Transparent images will default to [`AlphaType::Premul`]. If `alpha_type` contains
+    /// [`AlphaType::Premul`] or [`AlphaType::Unpremul`], that alpha type will be used. Forcing opaque
+    /// (passing [`AlphaType::Opaque`]) is not allowed, and will return `None`.
+    ///
+    /// If the encoded format is not supported, `None` is returned.
+    ///
+    /// * `encoded` - the encoded data
+    /// Returns: created [`Image`], or `None`
+    ///
+    /// example: <https://fiddle.skia.org/c/@Image_DeferredFromEncodedData>
+    pub fn deferred_from_encoded_data(
+        data: impl Into<Data>,
+        alpha_type: impl Into<Option<AlphaType>>,
+    ) -> Option<Image> {
+        Image::from_ptr(unsafe {
+            sb::C_SkImages_DeferredFromEncodedData(
+                data.into().into_ptr(),
+                alpha_type
+                    .into()
+                    .map(|at| &at as *const _)
+                    .unwrap_or(ptr::null()),
+            )
+        })
+    }
+
+    /// Creates [`Image`] from data returned by `image_generator`. The image data will not be created
+    /// (on either the CPU or GPU) until the image is actually drawn.
+    /// Generated data is owned by [`Image`] and may not be shared or accessed.
+    ///
+    /// [`Image`] is returned if generator data is valid. Valid data parameters vary by type of data
+    /// and platform.
+    ///
+    /// `image_generator` may wrap [`Picture`] data, codec data, or custom data.
+    ///
+    /// * `image_generator` - stock or custom routines to retrieve [`Image`]
+    /// Returns: created [`Image`], or `None`
+    pub fn deferred_from_generator(mut image_generator: ImageGenerator) -> Option<Image> {
+        let image = Image::from_ptr(unsafe {
+            sb::C_SkImages_DeferredFromGenerator(image_generator.native_mut())
+        });
+        mem::forget(image_generator);
+        image
+    }
+
+    pub use skia_bindings::SkImages_BitDepth as BitDepth;
+    variant_name!(BitDepth::F16);
+
+    /// Creates [`Image`] from picture. Returned [`Image`] width and height are set by dimensions.
+    /// [`Image`] draws picture with matrix and paint, set to `bit_depth` and `color_space`.
+    ///
+    /// The Picture data is not turned into an image (CPU or GPU) until it is drawn.
+    ///
+    /// If matrix is `None`, draws with identity [`Matrix`]. If paint is `None`, draws
+    /// with default [`Paint`]. `color_space` may be `None`.
+    ///
+    /// * `picture` - stream of drawing commands
+    /// * `dimensions` - width and height
+    /// * `matrix` - [`Matrix`] to rotate, scale, translate, and so on; may be `None`
+    /// * `paint` - [`Paint`] to apply transparency, filtering, and so on; may be `None`
+    /// * `bit_depth` - 8-bit integer or 16-bit float: per component
+    /// * `color_space` - range of colors; may be `None`
+    /// * `props` - props to use when rasterizing the picture
+    /// Returns: created [`Image`], or `None`
+    pub fn deferred_from_picture(
+        picture: impl Into<Picture>,
+        dimensions: impl Into<ISize>,
+        matrix: Option<&Matrix>,
+        paint: Option<&Paint>,
+        bit_depth: BitDepth,
+        color_space: impl Into<Option<ColorSpace>>,
+        props: impl Into<Option<SurfaceProps>>,
+    ) -> Option<Image> {
+        Image::from_ptr(unsafe {
+            sb::C_SkImages_DeferredFromPicture(
+                picture.into().into_ptr(),
+                dimensions.into().native(),
+                matrix.native_ptr_or_null(),
+                paint.native_ptr_or_null(),
+                bit_depth,
+                color_space.into().into_ptr_or_null(),
+                props.into().unwrap_or_default().native(),
+            )
+        })
+    }
+
+    // TODO: RasterFromPixmapCopy
+    // TODO: RasterFromPixmap
+
+    /// Creates CPU-backed [`Image`] from pixel data described by info.
+    /// The pixels data will *not* be copied.
+    ///
+    /// [`Image`] is returned if [`ImageInfo`] is valid. Valid [`ImageInfo`] parameters include:
+    /// dimensions are greater than zero;
+    /// each dimension fits in 29 bits;
+    /// [`ColorType`] and [`AlphaType`] are valid, and [`ColorType`] is not [`ColorType::Unknown`];
+    /// `row_bytes` are large enough to hold one row of pixels;
+    /// pixels is not `None`, and contains enough data for [`Image`].
+    ///
+    /// * `info` - contains width, height, [`AlphaType`], [`ColorType`], [`ColorSpace`]
+    /// * `pixels` - address or pixel storage
+    /// * `row_bytes` - size of pixel row or larger
+    /// Returns: [`Image`] sharing pixels, or `None`
+    pub fn raster_from_data(
+        info: &ImageInfo,
+        pixels: impl Into<Data>,
+        row_bytes: usize,
+    ) -> Option<Image> {
+        Image::from_ptr(unsafe {
+            sb::C_SkImages_RasterFromData(info.native(), pixels.into().into_ptr(), row_bytes)
+        })
+    }
+}
 
 /// CachingHint selects whether Skia may internally cache [`Bitmap`] generated by
 /// decoding [`Image`], or by copying [`Image`] from GPU to CPU. The default behavior
@@ -82,8 +244,6 @@ impl fmt::Debug for Image {
 }
 
 impl Image {
-    // TODO: MakeRasterCopy()
-
     /// Creates [`Image`] from [`ImageInfo`], sharing pixels.
     ///
     /// [`Image`] is returned if [`ImageInfo`] is valid. Valid [`ImageInfo`] parameters include:
@@ -97,17 +257,14 @@ impl Image {
     /// - `pixels`     address or pixel storage
     /// - `rowBytes`   size of pixel row or larger
     /// Returns: [`Image`] sharing pixels, or `None`
+    #[deprecated(since = "0.63.0", note = "use images::raster_from_data()")]
     pub fn from_raster_data(
         info: &ImageInfo,
         pixels: impl Into<Data>,
         row_bytes: usize,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeRasterData(info.native(), pixels.into().into_ptr(), row_bytes)
-        })
+        images::raster_from_data(info, pixels, row_bytes)
     }
-
-    // TODO: MakeFromRaster()
 
     /// Creates [`Image`] from bitmap, sharing or copying bitmap pixels. If the bitmap
     /// is marked immutable, and its pixel memory is shareable, it may be shared
@@ -124,8 +281,9 @@ impl Image {
     /// Returns: created [`Image`], or `None`
     ///
     /// example: <https://fiddle.skia.org/c/@Image_MakeFromBitmap>
+    #[deprecated(since = "0.63.0", note = "use images::raster_from_bitmap()")]
     pub fn from_bitmap(bitmap: &Bitmap) -> Option<Image> {
-        Image::from_ptr(unsafe { sb::C_SkImage_MakeFromBitmap(bitmap.native()) })
+        images::raster_from_bitmap(bitmap)
     }
 
     /// Creates [`Image`] from data returned by `image_generator`. Generated data is owned by [`Image`] and
@@ -138,19 +296,14 @@ impl Image {
     ///
     /// - `image_generator`   stock or custom routines to retrieve [`Image`]
     /// Returns: created [`Image`], or `None`
-    pub fn from_generator(mut image_generator: ImageGenerator) -> Option<Image> {
-        let image = Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromGenerator(image_generator.native_mut())
-        });
-        mem::forget(image_generator);
-        image
+    #[deprecated(since = "0.63.0", note = "use images::deferred_from_generator()")]
+    pub fn from_generator(image_generator: ImageGenerator) -> Option<Image> {
+        images::deferred_from_generator(image_generator)
     }
 
     /// See [`Self::from_encoded_with_alpha_type()`]
     pub fn from_encoded(data: impl Into<Data>) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromEncoded(data.into().into_ptr(), ptr::null())
-        })
+        images::deferred_from_encoded_data(data, None)
     }
 
     /// Return an image backed by the encoded data, but attempt to defer decoding until the image
@@ -177,15 +330,7 @@ impl Image {
         data: impl Into<Data>,
         alpha_type: impl Into<Option<AlphaType>>,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromEncoded(
-                data.into().into_ptr(),
-                alpha_type
-                    .into()
-                    .map(|at| &at as *const _)
-                    .unwrap_or(ptr::null()),
-            )
-        })
+        images::deferred_from_encoded_data(data, alpha_type)
     }
 
     #[deprecated(since = "0.35.0", note = "Removed without replacement")]
@@ -201,25 +346,22 @@ impl Image {
     /// - `data`      compressed data to store in [`Image`]
     /// - `width`     width of full [`Image`]
     /// - `height`    height of full [`Image`]
-    /// - `type`      type of compression used
+    /// - `ty`        type of compression used
     /// Returns: created [`Image`], or `None`
+    #[deprecated(
+        since = "0.63.0",
+        note = "use images::raster_from_compressed_texture_data()"
+    )]
     pub fn new_raster_from_compressed(
         data: impl Into<Data>,
         dimensions: impl Into<ISize>,
-        ct: CompressionType,
+        ty: TextureCompressionType,
     ) -> Option<Image> {
-        let dimensions = dimensions.into();
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeRasterFromCompressed(
-                data.into().into_ptr(),
-                dimensions.width,
-                dimensions.height,
-                ct,
-            )
-        })
+        images::raster_from_compressed_texture_data(data, dimensions, ty)
     }
 
     /// See [`Self::from_picture_with_props()`]
+    #[deprecated(since = "0.63.0", note = "use images::deferred_from_picture()")]
     pub fn from_picture(
         picture: impl Into<Picture>,
         dimensions: impl Into<ISize>,
@@ -228,14 +370,14 @@ impl Image {
         bit_depth: BitDepth,
         color_space: impl Into<Option<ColorSpace>>,
     ) -> Option<Image> {
-        Self::from_picture_with_props(
+        images::deferred_from_picture(
             picture,
             dimensions,
             matrix,
             paint,
             bit_depth,
             color_space,
-            SurfaceProps::default(),
+            None,
         )
     }
 
@@ -253,6 +395,7 @@ impl Image {
     /// - `color_space`  range of colors; may be `None`
     /// - `props`        props to use when rasterizing the picture
     /// Returns: created [`Image`], or `None`
+    #[deprecated(since = "0.63.0", note = "use images::deferred_from_picture()")]
     pub fn from_picture_with_props(
         picture: impl Into<Picture>,
         dimensions: impl Into<ISize>,
@@ -262,17 +405,15 @@ impl Image {
         color_space: impl Into<Option<ColorSpace>>,
         props: SurfaceProps,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromPicture(
-                picture.into().into_ptr(),
-                dimensions.into().native(),
-                matrix.native_ptr_or_null(),
-                paint.native_ptr_or_null(),
-                bit_depth,
-                color_space.into().into_ptr_or_null(),
-                props.native(),
-            )
-        })
+        images::deferred_from_picture(
+            picture,
+            dimensions,
+            matrix,
+            paint,
+            bit_depth,
+            color_space,
+            Some(props),
+        )
     }
 
     /// Creates a GPU-backed [`Image`] from compressed data.
@@ -288,34 +429,31 @@ impl Image {
     /// - `data`         compressed data to store in [`Image`]
     /// - `width`        width of full [`Image`]
     /// - `height`       height of full [`Image`]
-    /// - `type`         type of compression used
+    /// - `ty`           type of compression used
     /// - `mipmapped`    does 'data' contain data for all the mipmap levels?
     /// - `is_protected`  do the contents of 'data' require DRM protection (on Vulkan)?
     /// Returns: created [`Image`], or `None`
     #[cfg(feature = "gpu")]
+    #[deprecated(
+        since = "0.63.0",
+        note = "use gpu::images::texture_from_compressed_texture_data()"
+    )]
     pub fn new_texture_from_compressed(
         context: &mut gpu::DirectContext,
         data: Data,
         dimensions: impl Into<ISize>,
-        ct: CompressionType,
+        ty: TextureCompressionType,
         mipmapped: impl Into<Option<gpu::Mipmapped>>,
         is_protected: impl Into<Option<gpu::Protected>>,
     ) -> Option<Image> {
-        let dimensions = dimensions.into();
-        let mipmapped = mipmapped.into().unwrap_or(gpu::Mipmapped::No);
-        let is_protected = is_protected.into().unwrap_or(gpu::Protected::No);
-
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeTextureFromCompressed(
-                context.native_mut(),
-                data.into_ptr(),
-                dimensions.width,
-                dimensions.height,
-                ct,
-                mipmapped,
-                is_protected,
-            )
-        })
+        gpu::images::texture_from_compressed_texture_data(
+            context,
+            data,
+            dimensions,
+            ty,
+            mipmapped,
+            is_protected,
+        )
     }
 
     #[cfg(feature = "gpu")]
@@ -324,7 +462,7 @@ impl Image {
         _context: &mut gpu::RecordingContext,
         _data: Data,
         _dimensions: impl Into<ISize>,
-        _ct: CompressionType,
+        _ct: TextureCompressionType,
     ) -> ! {
         panic!("Removed without replacement.")
     }
@@ -339,20 +477,22 @@ impl Image {
     /// Note: When using a DDL recording context, `texture_release_proc` will be called on the
     /// GPU thread after the DDL is played back on the direct context.
     ///
-    /// - `context`              GPU context
-    /// - `backend_texture`       texture residing on GPU
-    /// - `color_space`           This describes the color space of this image's contents, as
-    ///                            seen after sampling. In general, if the format of the backend
-    ///                            texture is SRGB, some linear `color_space` should be supplied
-    ///                            (e.g., [`ColorSpace::new_srgb_linear()`]). If the format of the
-    ///                            backend texture is linear, then the `color_space` should include
-    ///                            a description of the transfer function as
-    ///                            well (e.g., [`ColorSpace::new_srgb()`]).
-    /// - `texture_release_proc`   function called when texture can be released
-    /// - `release_context`       state passed to `texture_release_proc`
-    /// Returns: created [`Image`], or `None`
+    /// * `context`               GPU context
+    /// * `backend_texture`       Texture residing on GPU
+    /// * `origin`                Origin of `backend_texture`
+    /// * `color_type`            Color type of the resulting image
+    /// * `alpha_type`            Alpha type of the resulting image
+    /// * `color_space`           This describes the color space of this image's contents, as
+    ///                           seen after sampling. In general, if the format of the backend
+    ///                           texture is SRGB, some linear `color_space` should be supplied
+    ///                           (e.g., [`ColorSpace::new_srgb_linear()`])). If the format of the
+    ///                           backend texture is linear, then the `color_space` should include
+    ///                           a description of the transfer function as
+    ///                           well (e.g., [`ColorSpace::MakeSRGB`]()).
+    /// * `texture_release_proc`  Function called when texture can be released
+    /// * `release_context`       State passed to `texture_release_proc`
+    /// Returns: Created [`Image`], or `None`
     #[cfg(feature = "gpu")]
-    // TODO: add variant with TextureReleaseProc
     pub fn from_texture(
         context: &mut gpu::RecordingContext,
         backend_texture: &gpu::BackendTexture,
@@ -361,19 +501,15 @@ impl Image {
         alpha_type: AlphaType,
         color_space: impl Into<Option<ColorSpace>>,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromTexture(
-                context.native_mut(),
-                backend_texture.native(),
-                origin,
-                color_type.into_native(),
-                alpha_type,
-                color_space.into().into_ptr_or_null(),
-            )
-        })
+        gpu::images::borrow_texture_from(
+            context,
+            backend_texture,
+            origin,
+            color_type,
+            alpha_type,
+            color_space,
+        )
     }
-
-    // TODO: MakeFromCompressedTexture
 
     #[deprecated(since = "0.27.0", note = "renamed, use new_cross_context_from_pixmap")]
     #[cfg(feature = "gpu")]
@@ -383,7 +519,12 @@ impl Image {
         build_mips: bool,
         limit_to_max_texture_size: impl Into<Option<bool>>,
     ) -> Option<Image> {
-        Self::new_cross_context_from_pixmap(context, pixmap, build_mips, limit_to_max_texture_size)
+        gpu::images::cross_context_texture_from_pixmap(
+            context,
+            pixmap,
+            build_mips,
+            limit_to_max_texture_size,
+        )
     }
 
     /// Creates [`Image`] from pixmap. [`Image`] is uploaded to GPU back-end using context.
@@ -409,20 +550,22 @@ impl Image {
     /// - `limit_to_max_texture_size`   downscale image to GPU maximum texture size, if necessary
     /// Returns: created [`Image`], or `None`
     #[cfg(feature = "gpu")]
+    #[deprecated(
+        since = "0.63.0",
+        note = "use gpu::images::cross_context_texture_from_pixmap()"
+    )]
     pub fn new_cross_context_from_pixmap(
         context: &mut gpu::DirectContext,
         pixmap: &Pixmap,
         build_mips: bool,
         limit_to_max_texture_size: impl Into<Option<bool>>,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeCrossContextFromPixmap(
-                context.native_mut(),
-                pixmap.native(),
-                build_mips,
-                limit_to_max_texture_size.into().unwrap_or(false),
-            )
-        })
+        gpu::images::cross_context_texture_from_pixmap(
+            context,
+            pixmap,
+            build_mips,
+            limit_to_max_texture_size,
+        )
     }
 
     /// Creates [`Image`] from `backend_texture` associated with context. `backend_texture` and
@@ -439,6 +582,7 @@ impl Image {
     /// - `color_space`       range of colors; may be `None`
     /// Returns: created [`Image`], or `None`
     #[cfg(feature = "gpu")]
+    #[deprecated(since = "0.63.0", note = "use gpu::images::adopt_texture_from()")]
     pub fn from_adopted_texture(
         context: &mut gpu::RecordingContext,
         backend_texture: &gpu::BackendTexture,
@@ -447,16 +591,14 @@ impl Image {
         alpha_type: impl Into<Option<AlphaType>>,
         color_space: impl Into<Option<ColorSpace>>,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromAdoptedTexture(
-                context.native_mut(),
-                backend_texture.native(),
-                texture_origin,
-                color_type.into_native(),
-                alpha_type.into().unwrap_or(AlphaType::Premul),
-                color_space.into().into_ptr_or_null(),
-            )
-        })
+        gpu::images::adopt_texture_from(
+            context,
+            backend_texture,
+            texture_origin,
+            color_type,
+            alpha_type,
+            color_space,
+        )
     }
 
     /// Creates an [`Image`] from `YUV[A]` planar textures. This requires that the textures stay valid
@@ -473,18 +615,16 @@ impl Image {
     /// - `release_context`      state passed to `texture_release_proc`
     /// Returns: created [`Image`], or `None`
     #[cfg(feature = "gpu")]
+    #[deprecated(
+        since = "0.63.0",
+        note = "use gpu::images::texture_from_yuva_textures()"
+    )]
     pub fn from_yuva_textures(
         context: &mut gpu::RecordingContext,
         yuva_textures: &gpu::YUVABackendTextures,
         image_color_space: impl Into<Option<ColorSpace>>,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromYUVATextures(
-                context.native_mut(),
-                yuva_textures.native(),
-                image_color_space.into().into_ptr_or_null(),
-            )
-        })
+        gpu::images::texture_from_yuva_textures(context, yuva_textures, image_color_space)
     }
 
     /// Creates [`Image`] from [`crate::YUVAPixmaps`].
@@ -510,6 +650,10 @@ impl Image {
     /// - `image_color_space`         range of colors of the resulting image; may be `None`
     /// Returns: created [`Image`], or `None`
     #[cfg(feature = "gpu")]
+    #[deprecated(
+        since = "0.63.0",
+        note = "use gpu::images::texture_from_yuva_pixmaps()"
+    )]
     pub fn from_yuva_pixmaps(
         context: &mut gpu::RecordingContext,
         yuva_pixmaps: &crate::YUVAPixmaps,
@@ -517,15 +661,13 @@ impl Image {
         limit_to_max_texture_size: impl Into<Option<bool>>,
         image_color_space: impl Into<Option<ColorSpace>>,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_MakeFromYUVAPixmaps(
-                context.native_mut(),
-                yuva_pixmaps.native(),
-                build_mips.into().unwrap_or(gpu::Mipmapped::No),
-                limit_to_max_texture_size.into().unwrap_or(false),
-                image_color_space.into().into_ptr_or_null(),
-            )
-        })
+        gpu::images::texture_from_yuva_pixmaps(
+            context,
+            yuva_pixmaps,
+            build_mips,
+            limit_to_max_texture_size,
+            image_color_space,
+        )
     }
 
     #[cfg(feature = "gpu")]
@@ -539,9 +681,6 @@ impl Image {
     ) -> ! {
         panic!("Removed without replacement")
     }
-
-    // TODO: MakePromiseTexture
-    // TODO: MakePromiseYUVATexture
 
     /// Returns a [`ImageInfo`] describing the width, height, color type, alpha type, and color space
     /// of the [`Image`].
@@ -707,10 +846,9 @@ impl Image {
     /// Returns: `true` if [`Image`] has direct access to pixels
     ///
     /// example: <https://fiddle.skia.org/c/@Image_peekPixels>
-    pub fn peek_pixels(&self) -> Option<Borrows<Pixmap>> {
+    pub fn peek_pixels(&self) -> Option<Pixmap> {
         let mut pixmap = Pixmap::default();
-        unsafe { self.native().peekPixels(pixmap.native_mut()) }
-            .if_true_then_some(|| pixmap.borrows(self))
+        unsafe { self.native().peekPixels(pixmap.native_mut()) }.if_true_some(pixmap)
     }
 
     /// Returns `true` if the contents of [`Image`] was created on or uploaded to GPU memory,
@@ -720,14 +858,13 @@ impl Image {
     ///
     /// example: <https://fiddle.skia.org/c/@Image_isTextureBacked>
     pub fn is_texture_backed(&self) -> bool {
-        unsafe { self.native().isTextureBacked() }
+        unsafe { sb::C_SkImage_isTextureBacked(self.native()) }
     }
 
     /// Returns an approximation of the amount of texture memory used by the image. Returns
     /// zero if the image is not texture backed or if the texture has an external format.
-    #[cfg(feature = "gpu")]
     pub fn texture_size(&self) -> usize {
-        unsafe { self.native().textureSize() }
+        unsafe { sb::C_SkImage_textureSize(self.native()) }
     }
 
     /// Returns `true` if [`Image`] can be drawn on either raster surface or GPU surface.
@@ -744,22 +881,18 @@ impl Image {
     /// example: <https://fiddle.skia.org/c/@Image_isValid>
     #[cfg(feature = "gpu")]
     pub fn is_valid(&self, context: &mut gpu::RecordingContext) -> bool {
-        unsafe { self.native().isValid(context.native_mut()) }
+        unsafe { sb::C_SkImage_isValid(self.native(), context.native_mut()) }
     }
 
     /// See [`Self::flush_with_info()`]
     #[cfg(feature = "gpu")]
+    #[deprecated(since = "0.63.0", note = "use gpu::DirectContext::flush()")]
     pub fn flush<'a>(
         &self,
         context: &mut gpu::DirectContext,
         flush_info: impl Into<Option<&'a gpu::FlushInfo>>,
     ) -> gpu::SemaphoresSubmitted {
-        let flush_info_default = gpu::FlushInfo::default();
-        let flush_info = flush_info.into().unwrap_or(&flush_info_default);
-        unsafe {
-            self.native()
-                .flush(context.native_mut(), flush_info.native())
-        }
+        context.flush(flush_info)
     }
 
     /// Flushes any pending uses of texture-backed images in the GPU backend. If the image is not
@@ -773,20 +906,21 @@ impl Image {
     /// - `context`   the context on which to flush pending usages of the image.
     /// - `info`      flush options
     #[cfg(feature = "gpu")]
-    #[deprecated(since = "0.46.0", note = "use flush()")]
+    #[deprecated(since = "0.46.0", note = "use gpu::DirectContext::flush()")]
     pub fn flush_with_info(
         &self,
         context: &mut gpu::DirectContext,
         flush_info: &gpu::FlushInfo,
     ) -> gpu::SemaphoresSubmitted {
-        self.flush(context, flush_info)
+        context.flush(flush_info)
     }
 
     /// Version of `flush()` that uses a default [`gpu::FlushInfo`]. Also submits the flushed work to the
     /// GPU.
     #[cfg(feature = "gpu")]
+    #[deprecated(since = "0.63.0", note = "use gpu::DirectContext::flush_and_submit()")]
     pub fn flush_and_submit(&self, context: &mut gpu::DirectContext) {
-        unsafe { self.native().flushAndSubmit(context.native_mut()) }
+        context.flush_and_submit();
     }
 
     /// Retrieves the back-end texture. If [`Image`] has no back-end texture, `None`is returned.
@@ -798,20 +932,15 @@ impl Image {
     /// - `flush_pending_gr_context_io`   flag to flush outstanding requests
     /// Returns: back-end API texture handle; invalid on failure
     #[cfg(feature = "gpu")]
+    #[deprecated(
+        since = "0.63.0",
+        note = "use gpu::images::get_backend_texture_from_image()"
+    )]
     pub fn backend_texture(
         &self,
         flush_pending_gr_context_io: bool,
     ) -> Option<(gpu::BackendTexture, gpu::SurfaceOrigin)> {
-        let mut origin = gpu::SurfaceOrigin::TopLeft;
-        unsafe {
-            let backend_texture = sb::C_SkImage_getBackendTexture(
-                self.native(),
-                flush_pending_gr_context_io,
-                &mut origin,
-            );
-            gpu::BackendTexture::from_native_if_valid(backend_texture)
-        }
-        .map(|texture| (texture, origin))
+        gpu::images::get_backend_texture_from_image(self, flush_pending_gr_context_io)
     }
 
     /// Copies [`crate::Rect`] of pixels from [`Image`] to `dst_pixels`. Copy starts at offset (`src_x`, `src_y`),
@@ -1008,9 +1137,47 @@ impl Image {
         }
     }
 
+    /// Encodes [`Image`] pixels, returning result as [`Data`].
+    ///
+    ///  Returns `None` if encoding fails, or if `encoded_image_format` is not supported.
+    ///
+    ///  [`Image`] encoding in a format requires both building with one or more of:
+    ///  SK_ENCODE_JPEG, SK_ENCODE_PNG, SK_ENCODE_WEBP; and platform support
+    ///  for the encoded format.
+    ///
+    ///  If SK_BUILD_FOR_MAC or SK_BUILD_FOR_IOS is defined, `encoded_image_format` can
+    ///  additionally be one of: [`EncodedImageFormat::ICO`], [`EncodedImageFormat::BMP`],
+    ///  [`EncodedImageFormat::GIF`].
+    ///
+    ///  quality is a platform and format specific metric trading off size and encoding
+    ///  error. When used, quality equaling 100 encodes with the least error. quality may
+    ///  be ignored by the encoder.
+    ///
+    ///  * `context` - the [`gpu::DirectContext`] in play, if it exists; can be `None`
+    ///  * `encoded_image_format` - one of: [`EncodedImageFormat::JPEG`], [`EncodedImageFormat::PNG`],
+    ///                             [`EncodedImageFormat::WEBP`]
+    ///  * `quality` - encoder specific metric with 100 equaling best
+    ///  Returns: encoded [`Image`], or `None`
+    ///
+    ///  example: <https://fiddle.skia.org/c/@Image_encodeToData>
+    #[cfg(feature = "gpu")]
+    #[deprecated(since = "0.63.0", note = "Use encode")]
+    pub fn encode_to_data_with_context(
+        &self,
+        context: impl Into<Option<gpu::DirectContext>>,
+        image_format: EncodedImageFormat,
+        quality: impl Into<Option<u32>>,
+    ) -> Option<Data> {
+        self.encode(context, image_format, quality)
+    }
+
     /// See [`Self::encode_to_data_with_quality`]
+    #[deprecated(
+        since = "0.63.0",
+        note = "Support for encoding GPU backed images without a context was removed, use `encode_to_data_with_context` instead"
+    )]
     pub fn encode_to_data(&self, image_format: EncodedImageFormat) -> Option<Data> {
-        self.encode_to_data_with_quality(image_format, 100)
+        self.encode(None, image_format, 100)
     }
 
     /// Encodes [`Image`] pixels, returning result as [`Data`].
@@ -1035,15 +1202,17 @@ impl Image {
     /// Returns: encoded [`Image`], or `None`
     ///
     /// example: <https://fiddle.skia.org/c/@Image_encodeToData>
+    #[deprecated(
+        since = "0.63.0",
+        note = "Support for encoding GPU backed images without a context was removed, use `encode_to_data_with_context` instead"
+    )]
     pub fn encode_to_data_with_quality(
         &self,
         image_format: EncodedImageFormat,
-        quality: i32,
+        quality: u32,
     ) -> Option<Data> {
-        Data::from_ptr(unsafe { sb::C_SkImage_encodeToData(self.native(), image_format, quality) })
+        self.encode(None, image_format, quality)
     }
-
-    // TODO: encodeToData()
 
     /// Returns encoded [`Image`] pixels as [`Data`], if [`Image`] was created from supported
     /// encoded stream format. Platform support for formats vary and may require building
@@ -1143,14 +1312,7 @@ impl Image {
         mipmapped: gpu::Mipmapped,
         budgeted: gpu::Budgeted,
     ) -> Option<Image> {
-        Image::from_ptr(unsafe {
-            sb::C_SkImage_makeTextureImage(
-                self.native(),
-                direct_context.native_mut(),
-                mipmapped,
-                budgeted.into_native(),
-            )
-        })
+        gpu::images::texture_from_image(direct_context, self, mipmapped, budgeted)
     }
 
     #[deprecated(since = "0.54.0", note = "use to_non_texture_image()")]

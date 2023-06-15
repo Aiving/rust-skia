@@ -1,5 +1,4 @@
 use skia_bindings::SkGraphics;
-use std::ffi::CString;
 
 pub fn init() {
     unsafe { SkGraphics::Init() };
@@ -75,15 +74,15 @@ pub fn purge_all_caches() {
     unsafe { SkGraphics::PurgeAllCaches() }
 }
 
-pub fn set_flags(flags: impl AsRef<str>) {
-    let c_str = CString::new(flags.as_ref()).unwrap();
-    unsafe { SkGraphics::SetFlags(c_str.as_ptr()) }
-}
-
 // TODO: ImageGeneratorFromEncodedDataFactory
 // TODO: SetOpenTypeSVGDecoderFactory & GetOpenTypeSVGDecoderFactory
-// TODO: SetVariableColrV1EnabledFunc & GetVariableColrV1Enabled
 
 pub fn allow_jit() {
     unsafe { SkGraphics::AllowJIT() }
+}
+
+// TODO: SetPathAnalyticAADecider
+
+pub fn set_force_analytic_aa(force_analytic_aa: bool) {
+    unsafe { SkGraphics::SetForceAnalyticAA(force_analytic_aa) }
 }

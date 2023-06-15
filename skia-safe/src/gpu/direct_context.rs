@@ -8,7 +8,7 @@ use super::{
     BackendFormat, BackendRenderTarget, BackendTexture, ContextOptions, FlushInfo,
     MutableTextureState, RecordingContext, SemaphoresSubmitted,
 };
-use crate::{image, prelude::*, Data};
+use crate::{prelude::*, Data, Image, TextureCompressionType};
 use skia_bindings::{self as sb, GrDirectContext, GrDirectContext_DirectContextID, SkRefCntBase};
 use std::{
     fmt,
@@ -30,7 +30,6 @@ native_transmutable!(
 );
 
 pub type DirectContext = RCHandle<GrDirectContext>;
-require_type_equality!(sb::GrDirectContext_INHERITED, sb::GrRecordingContext);
 
 impl NativeRefCountedBase for GrDirectContext {
     type Base = SkRefCntBase;
@@ -280,6 +279,30 @@ impl DirectContext {
         }
     }
 
+    pub fn flush_image_with_info(
+        &mut self,
+        image: &Image,
+        info: &FlushInfo,
+    ) -> SemaphoresSubmitted {
+        unsafe {
+            sb::C_GrDirectContext_flushImageWithInfo(
+                self.native_mut(),
+                image.clone().into_ptr(),
+                info.native(),
+            )
+        }
+    }
+
+    pub fn flush_image(&mut self, image: &Image) {
+        unsafe { sb::C_GrDirectContext_flushImage(self.native_mut(), image.clone().into_ptr()) }
+    }
+
+    pub fn flush_and_submit_image(&mut self, image: &Image) {
+        unsafe {
+            sb::C_GrDirectContext_flushAndSubmitImage(self.native_mut(), image.clone().into_ptr())
+        }
+    }
+
     pub fn submit(&mut self, sync_cpu: impl Into<Option<bool>>) -> bool {
         unsafe { self.native_mut().submit(sync_cpu.into().unwrap_or(false)) }
     }
@@ -310,7 +333,7 @@ impl DirectContext {
     // TODO: wrap updateBackendTexture (several variants)
     //       introduced in m84
 
-    pub fn compressed_backend_format(&self, compression: image::CompressionType) -> BackendFormat {
+    pub fn compressed_backend_format(&self, compression: TextureCompressionType) -> BackendFormat {
         let mut backend_format = BackendFormat::new_invalid();
         unsafe {
             sb::C_GrDirectContext_compressedBackendFormat(

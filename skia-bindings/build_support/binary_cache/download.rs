@@ -1,4 +1,4 @@
-use super::{binaries, env, git, utils, SRC_BINDINGS_RS};
+use super::{binaries, env, git, utils};
 use crate::build_support::{binaries_config, cargo};
 use flate2::read::GzDecoder;
 use std::{
@@ -21,16 +21,21 @@ pub fn resolve_dependencies() {
 
     
     // Not in a crate, assuming a git repo. Update all submodules.
-    assert!(
-        Command::new("git")
-            .args(["submodule", "update", "--init", "--depth", "1"])
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .status()
-            .unwrap()
-            .success(),
-        "`git submodule update` failed"
-    );
+    let submodules_updated = Command::new("git")
+        .args(["submodule", "update", "--init", "--depth", "1"])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .unwrap()
+        .success();
+
+    // If `git submodule update` failed, either git is not installed,
+    // or we're not building from a git repo.
+    // This can happen if the repo is downloaded as a ZIP archive.
+    if !submodules_updated {
+        println!("`git submodule update` failed. Falling back to HTTP download");
+        download_dependencies();
+    }
 }
 
 /// Downloads the `skia` and `depot_tools` from their repositories.
@@ -45,8 +50,12 @@ fn download_dependencies() {
 
         let dir = PathBuf::from(repo_name);
 
-        // Directory exists => assume that the download of the archive was successful.
-        if dir.exists() {
+        // If the repo is downloaded from GitHub as a ZIP archive,
+        // the directories for submodules will exist but will be empty.
+        // If the directory exists and is not empty,
+        // assume the download has succeeded in previous build runs,
+        // so we can skip it.
+        if dir_not_empty(&dir) {
             continue;
         }
 
@@ -90,6 +99,13 @@ fn download_dependencies() {
         // Move unpack directory to the target repository directory
         fs::rename(unpack_dir, repo_name).expect("failed to move directory");
     }
+}
+
+fn dir_not_empty(dir_path: &Path) -> bool {
+    dir_path
+        .read_dir()
+        .map(|mut contents| contents.next().is_some())
+        .unwrap_or(false)
 }
 
 // Specifies where to download Skia and Depot Tools archives from.
@@ -196,9 +212,7 @@ fn download_and_install(url: impl AsRef<str>, output_directory: &Path) -> io::Re
         output_directory.to_str().unwrap()
     );
     binaries::unpack(Cursor::new(archive), output_directory)?;
-    // TODO: Verify key?
-    println!("INSTALLING BINDINGS");
-    fs::copy(output_directory.join("bindings.rs"), SRC_BINDINGS_RS)?;
+    // TODO: verify key
 
     Ok(())
 }

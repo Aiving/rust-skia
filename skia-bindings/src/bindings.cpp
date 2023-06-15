@@ -1,14 +1,18 @@
 #include <cassert>
 #include <tuple>
 #include <vector>
+#include <memory>
 
 #include "bindings.h"
 // codec/
 #include "include/codec/SkEncodedOrigin.h"
 #include "include/codec/SkCodec.h"
+#include "include/codec/SkCodecAnimation.h"
+#include "include/codec/SkPixmapUtils.h"
 // core/
 #include "include/core/SkAnnotation.h"
 #include "include/core/SkBlendMode.h"
+#include "include/core/SkBitmap.h"
 #include "include/core/SkBlurTypes.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
@@ -20,6 +24,7 @@
 #include "include/core/SkDeferredDisplayListRecorder.h"
 #include "include/core/SkDrawable.h"
 #include "include/core/SkDocument.h"
+#include "include/core/SkEncodedImageFormat.h"
 #include "include/core/SkFlattenable.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkFontArguments.h"
@@ -27,7 +32,6 @@
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkImage.h"
-#include "include/core/SkImageEncoder.h"
 #include "include/core/SkImageFilter.h"
 #include "include/core/SkImageGenerator.h"
 #include "include/core/SkImageInfo.h"
@@ -55,6 +59,7 @@
 #include "include/core/SkSurfaceCharacterization.h"
 #include "include/core/SkSwizzle.h"
 #include "include/core/SkTextBlob.h"
+#include "include/core/SkTextureCompressionType.h"
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "include/core/SkVertices.h"
@@ -85,6 +90,10 @@
 #include "include/effects/SkTableMaskFilter.h"
 #include "include/effects/SkTrimPathEffect.h"
 
+// encode/
+#include "include/encode/SkPngEncoder.h"
+#include "include/encode/SkJpegEncoder.h"
+
 // pathops/
 #include "include/pathops/SkPathOps.h"
 
@@ -99,6 +108,8 @@
 #include "include/utils/SkParsePath.h"
 #include "include/utils/SkShadowUtils.h"
 #include "include/utils/SkTextUtils.h"
+
+extern "C" void C_Bindings_Types(Sink<bool>) {}
 
 //
 // codec/SkCodec.h
@@ -164,6 +175,14 @@ extern "C" int C_SkCodec_getFrameCount(SkCodec* self) {
     return self->getFrameCount();
 }
 
+extern "C" void C_SkFrameInfo_Construct(SkCodec::FrameInfo* uninitialized) {
+    new (uninitialized) SkCodec::FrameInfo();
+}
+
+extern "C" bool C_SkCodec_getFrameInfo(SkCodec* self, int index, SkCodec::FrameInfo* info) {
+    return self->getFrameInfo(index, info);
+}
+
 extern "C" int C_SkCodec_getRepetitionCount(SkCodec* self) {
     return self->getRepetitionCount();
 }
@@ -174,6 +193,18 @@ extern "C" int C_SkCodec_getRepetitionCount(SkCodec* self) {
 
 extern "C" void C_SkEncodedOriginToMatrix(SkEncodedOrigin origin, int w, int h, SkMatrix* matrix) {
     *matrix = SkEncodedOriginToMatrix(origin, w, h);
+}
+
+//
+// codec/SkPixmapUtils.h
+//
+
+extern "C" bool C_SkPixmapUtils_Orient(SkPixmap& dst, const SkPixmap& src, SkEncodedOrigin origin) {
+    return SkPixmapUtils::Orient(dst, src, origin);
+}
+
+extern "C" void C_SkPixmapUtils_SwapWidthHeight(SkImageInfo* uninitialized, const SkImageInfo& info) {
+    new (uninitialized) SkImageInfo(SkPixmapUtils::SwapWidthHeight(info));
 }
 
 //
@@ -303,37 +334,33 @@ extern "C" void C_SkSurfaceCharacterization_createColorSpace(const SkSurfaceChar
 // core/SkImage.h
 //
 
-extern "C" SkImage *C_SkImage_MakeRasterFromCompressed(SkData *data, int width, int height, SkImage::CompressionType
+extern "C" SkImage* C_SkImages_RasterFromBitmap(const SkBitmap* bitmap) {
+    return SkImages::RasterFromBitmap(*bitmap).release();
+}
+
+extern "C" SkImage *C_SkImages_RasterFromCompressedTextureData(SkData *data, int width, int height, SkTextureCompressionType
 type) {
-    return SkImage::MakeRasterFromCompressed(sp(data), width, height, type).release();
+    return SkImages::RasterFromCompressedTextureData(sp(data), width, height, type).release();
 }
 
-extern "C" SkImage* C_SkImage_MakeRasterData(const SkImageInfo* info, SkData* pixels, size_t rowBytes) {
-    return SkImage::MakeRasterData(*info, sp(pixels), rowBytes).release();
+extern "C" SkImage* C_SkImages_DeferredFromEncodedData(SkData* encoded, const SkAlphaType* alphaType) {
+    return SkImages::DeferredFromEncodedData(sp(encoded), opt(alphaType)).release();
 }
 
-extern "C" SkImage* C_SkImage_MakeFromBitmap(const SkBitmap* bitmap) {
-    return SkImage::MakeFromBitmap(*bitmap).release();
+extern "C" SkImage* C_SkImages_DeferredFromGenerator(SkImageGenerator* imageGenerator) {
+    return SkImages::DeferredFromGenerator(std::unique_ptr<SkImageGenerator>(imageGenerator)).release();
 }
 
-extern "C" SkImage* C_SkImage_MakeFromGenerator(SkImageGenerator* imageGenerator) {
-    return SkImage::MakeFromGenerator(std::unique_ptr<SkImageGenerator>(imageGenerator)).release();
-}
-
-extern "C" SkImage* C_SkImage_MakeFromEncoded(SkData* encoded, const SkAlphaType* alphaType) {
-    return SkImage::MakeFromEncoded(sp(encoded), opt(alphaType)).release();
-}
-
-extern "C" SkImage* C_SkImage_MakeFromPicture(
+extern "C" SkImage* C_SkImages_DeferredFromPicture(
         SkPicture* picture,
         const SkISize* dimensions,
         const SkMatrix* matrix,
         const SkPaint* paint,
-        SkImage::BitDepth bitDepth,
+        SkImages::BitDepth bitDepth,
         SkColorSpace* colorSpace,
         const SkSurfaceProps* props) {
-    return 
-        SkImage::MakeFromPicture(
+    return
+        SkImages::DeferredFromPicture(
             sp(picture),
             *dimensions,
             matrix,
@@ -344,23 +371,35 @@ extern "C" SkImage* C_SkImage_MakeFromPicture(
         ).release();
 }
 
+extern "C" SkImage* C_SkImages_RasterFromData(const SkImageInfo* info, SkData* pixels, size_t rowBytes) {
+    return SkImages::RasterFromData(*info, sp(pixels), rowBytes).release();
+}
+
 
 extern "C" SkShader* C_SkImage_makeShader(
-    const SkImage* self, 
-    SkTileMode tileMode1, SkTileMode tileMode2, 
+    const SkImage* self,
+    SkTileMode tileMode1, SkTileMode tileMode2,
     const SkSamplingOptions* samplingOptions, const SkMatrix* localMatrix) {
     return self->makeShader(tileMode1, tileMode2, *samplingOptions, localMatrix).release();
 }
 
 extern "C" SkShader* C_SkImage_makeRawShader(
-    const SkImage* self, 
-    SkTileMode tileMode1, SkTileMode tileMode2, 
+    const SkImage* self,
+    SkTileMode tileMode1, SkTileMode tileMode2,
     const SkSamplingOptions* samplingOptions, const SkMatrix* localMatrix) {
     return self->makeRawShader(tileMode1, tileMode2, *samplingOptions, localMatrix).release();
 }
 
-extern "C" SkData* C_SkImage_encodeToData(const SkImage* self, SkEncodedImageFormat imageFormat, int quality) {
-    return self->encodeToData(imageFormat, quality).release();
+extern "C" bool C_SkImage_isTextureBacked(const SkImage* self) {
+    return self->isTextureBacked();
+}
+
+extern "C" size_t C_SkImage_textureSize(const SkImage* self) {
+    return self->textureSize();
+}
+
+extern "C" bool C_SkImage_isValid(const SkImage* self, GrRecordingContext* context) {
+    return self->isValid(context);
 }
 
 extern "C" SkData* C_SkImage_refEncodedData(const SkImage* self) {
@@ -396,18 +435,6 @@ extern "C" SkImage* C_SkImage_makeColorSpace(const SkImage* self, SkColorSpace* 
 
 extern "C" SkImage* C_SkImage_reinterpretColorSpace(const SkImage* self, SkColorSpace* newColorSpace) {
     return self->reinterpretColorSpace(sp(newColorSpace)).release();
-}
-
-//
-// core/SkImageEncoder.h
-//
-
-extern "C" SkData *C_SkEncodePixmap(const SkPixmap *src, SkEncodedImageFormat format, int quality) {
-    return SkEncodePixmap(*src, format, quality).release();
-}
-
-extern "C" SkData *C_SkEncodeBitmap(const SkBitmap *src, SkEncodedImageFormat format, int quality) {
-    return SkEncodeBitmap(*src, format, quality).release();
 }
 
 //
@@ -1340,6 +1367,10 @@ extern "C" void C_SkFont_ConstructFromTypefaceWithSizeScaleAndSkew(SkFont* unini
     new(uninitialized) SkFont(sp(typeface), size, scaleX, skewX);
 }
 
+extern "C" void C_SkFont_CopyConstruct(SkFont* uninitialized, const SkFont* font) {
+    new(uninitialized) SkFont(*font);
+}
+
 extern "C" void C_SkFont_destruct(SkFont* self) {
     self->~SkFont();
 }
@@ -1427,11 +1458,39 @@ extern "C" void C_SkFontStyleSet_getStyle(SkFontStyleSet* self, int index, SkFon
 }
 
 extern "C" SkTypeface* C_SkFontStyleSet_createTypeface(SkFontStyleSet* self, int index) {
-    return self->createTypeface(index);
+    return self->createTypeface(index).release();
 }
 
 extern "C" SkTypeface* C_SkFontStyleSet_matchStyle(SkFontStyleSet* self, const SkFontStyle* pattern) {
-    return self->matchStyle(*pattern);
+    return self->matchStyle(*pattern).release();
+}
+
+extern "C" SkFontStyleSet* C_SkFontStyleSet_CreateEmpty() {
+    return SkFontStyleSet::CreateEmpty().release();
+}
+
+
+extern "C" SkFontStyleSet* C_SkFontMgr_createStyleSet(const SkFontMgr* self, int index) {
+    return self->createStyleSet(index).release();
+}
+
+extern "C" SkFontStyleSet* C_SkFontMgr_matchFamily(const SkFontMgr* self, const char familyName[]) {
+    return self->matchFamily(familyName).release();
+}
+
+extern "C" SkTypeface* C_SkFontMgr_matchFamilyStyle(
+    const SkFontMgr* self,
+    const char familyName[],
+    const SkFontStyle* style) {
+    return self->matchFamilyStyle(familyName, *style).release();
+}
+
+extern "C" SkTypeface* C_SkFontMgr_matchFamilyStyleCharacter(
+    const SkFontMgr* self,
+    const char familyName[], const SkFontStyle* style,
+    const char* bcp47[], int bcp47Count,
+    SkUnichar character) {
+    return self->matchFamilyStyleCharacter(familyName, *style, bcp47, bcp47Count, character).release();
 }
 
 // note: this function _consumes_ / deletes the stream.
@@ -1441,6 +1500,10 @@ extern "C" SkTypeface* C_SkFontMgr_makeFromStream(const SkFontMgr* self, SkStrea
 
 extern "C" SkFontMgr* C_SkFontMgr_RefDefault() {
     return SkFontMgr::RefDefault().release();
+}
+
+extern "C" SkFontMgr* C_SkFontMgr_RefEmpty() {
+    return SkFontMgr::RefEmpty().release();
 }
 
 //
@@ -1804,24 +1867,8 @@ extern "C" SkImageGenerator *C_SkImageGenerator_MakeFromEncoded(SkData *data, co
     return SkImageGenerator::MakeFromEncoded(sp(data), opt(alphaType)).release();
 }
 
-extern "C" SkImageGenerator *C_SkImageGenerator_MakeFromPicture(
-        const SkISize *size,
-        SkPicture *picture,
-        const SkMatrix *matrix,
-        const SkPaint *paint,
-        SkImage::BitDepth bd,
-        SkColorSpace *cs,
-        const SkSurfaceProps* props) {
-    return 
-        SkImageGenerator::MakeFromPicture(
-            *size,
-            sp(picture),
-            matrix,
-            paint,
-            bd,
-            sp(cs),
-            *props
-        ).release();
+extern "C" bool C_SkImageGenerator_isTextureGenerator(const SkImageGenerator *self) {
+    return self->isTextureGenerator();
 }
 
 //
@@ -1986,6 +2033,10 @@ extern "C" SkShader* C_SkShaders_Color2(const SkColor4f* color, SkColorSpace* co
 
 extern "C" SkShader* C_SkShaders_Blend(SkBlender* blender, SkShader* dst, SkShader* src) {
     return SkShaders::Blend(sp(blender), sp(dst), sp(src)).release();
+}
+
+extern "C" SkShader* C_SkShaders_CoordClamp(SkShader* shader, const SkRect* subset) {
+    return SkShaders::CoordClamp(sp(shader), *subset).release();
 }
 
 extern "C" SkShader* C_SkShader_Deserialize(const void* data, size_t length) {
@@ -2505,7 +2556,7 @@ extern "C" SkPathEffect *C_SkTrimPathEffect_Make(SkScalar startT, SkScalar stopT
 
 //
 // effects/SkImageFilters.h
-// 
+//
 
 extern "C" {
 
@@ -2697,6 +2748,62 @@ C_SkImageFilters_SpotLitSpecular(const SkPoint3 &location,
 }
 
 //
+// encode/
+//
+
+extern "C" {
+
+bool C_SkPngEncoder_Encode(SkWStream* stream, const SkPixmap* pixmap,
+    SkDataTable* comments, SkPngEncoder::FilterFlag filterFlags, int zLibLevel) {
+
+    auto options = SkPngEncoder::Options();
+    options.fComments = sp(comments);
+    options.fFilterFlags = filterFlags;
+    options.fZLibLevel = zLibLevel;
+
+    return SkPngEncoder::Encode(stream, *pixmap, options);
+}
+
+SkData* C_SkPngEncoder_EncodeImage(GrDirectContext* ctx, const SkImage* img,
+    SkDataTable* comments, SkPngEncoder::FilterFlag filterFlags, int zLibLevel) {
+
+    auto options = SkPngEncoder::Options();
+    options.fComments = sp(comments);
+    options.fFilterFlags = filterFlags;
+    options.fZLibLevel = zLibLevel;
+
+    return SkPngEncoder::Encode(ctx, img, options).release();
+}
+
+bool C_SkJpegEncoder_Encode(SkWStream* stream, const SkPixmap* pixmap, 
+    int quality,
+    SkJpegEncoder::Downsample downsample, 
+    SkJpegEncoder::AlphaOption alphaOption, 
+    const SkData* xmpMetadata) {
+    auto options = SkJpegEncoder::Options();
+    options.fQuality = quality;
+    options.fDownsample = downsample;
+    options.fAlphaOption = alphaOption;
+    options.xmpMetadata = xmpMetadata;
+    return SkJpegEncoder::Encode(stream, *pixmap, options);
+}
+
+SkData* C_SkJpegEncoder_EncodeImage(GrDirectContext* ctx, const SkImage* img, 
+    int quality,
+    SkJpegEncoder::Downsample downsample, 
+    SkJpegEncoder::AlphaOption alphaOption, 
+    const SkData* xmpMetadata) {
+    auto options = SkJpegEncoder::Options();
+    options.fQuality = quality;
+    options.fDownsample = downsample;
+    options.fAlphaOption = alphaOption;
+    options.xmpMetadata = xmpMetadata;
+    return SkJpegEncoder::Encode(ctx, img, options).release();
+}
+
+}
+
+//
 // docs/SkPDFDocument.h
 //
 
@@ -2814,6 +2921,10 @@ C_SkCustomTypefaceBuilder_setGlyph(SkCustomTypefaceBuilder *self, SkGlyphID glyp
     self->setGlyph(glyph, advance, sp(drawable), *bounds);
 }
 
+extern "C" SkTypeface* C_SkCustomTypefaceBuilder_FromData(SkData* data, const SkFontArguments* fontArguments) {
+    return SkCustomTypefaceBuilder::MakeFromStream(SkMemoryStream::Make(sp(data)), *fontArguments).release();
+}
+
 extern "C" SkCanvas* C_SkMakeNullCanvas() {
     return SkMakeNullCanvas().release();
 }
@@ -2847,11 +2958,11 @@ class RustStream : public SkStream {
 
 public:
     RustStream(
-            void *data,
-            size_t length,
-            size_t (*read)(void *, void *, size_t),
-            bool (*seekAbsolute)(void *, size_t),
-            bool (*seekRelative)(void *, long)
+        void *data,
+        size_t length,
+        size_t (*read)(void *, void *, size_t),
+        bool (*seekAbsolute)(void *, size_t),
+        bool (*seekRelative)(void *, long)
     );
 
     size_t read(void *buffer, size_t count);
@@ -2870,18 +2981,19 @@ public:
 };
 
 RustStream::RustStream(
-        void *data,
-        size_t length,
-        size_t (*read)(void *, void *, size_t),
-        bool (*seekAbsolute)(void *, size_t),
-        bool (*seekRelative)(void *, long)
+    void *data,
+    size_t length,
+    size_t (*read)(void *, void *, size_t),
+    bool (*seekAbsolute)(void *, size_t),
+    bool (*seekRelative)(void *, long)
 ) :
-        m_data(data),
-        m_length(length),
-        m_isEof(false),
-        m_read(read),
-        m_seekAbsolute(seekAbsolute),
-        m_seekRelative(seekRelative) {}
+    m_data(data),
+    m_length(length),
+    m_isEof(false),
+    m_read(read),
+    m_seekAbsolute(seekAbsolute),
+    m_seekRelative(seekRelative) 
+{}
 
 size_t RustStream::read(void *buffer, size_t count) {
     if (this->m_isEof) return 0;
@@ -2928,12 +3040,12 @@ bool RustStream::isAtEnd() const {
 }
 
 extern "C" void C_RustStream_construct(
-        RustStream *out,
-        void *data,
-        size_t length,
-        size_t (*read)(void *, void *, size_t),
-        bool (*seekAbsolute)(void *, size_t),
-        bool (*seekRelative)(void *, long)
+    RustStream *out,
+    void *data,
+    size_t length,
+    size_t (*read)(void *, void *, size_t),
+    bool (*seekAbsolute)(void *, size_t),
+    bool (*seekRelative)(void *, long)
 ) {
     new(out) RustStream(data, length, read, seekAbsolute, seekRelative);
 }
@@ -2942,4 +3054,52 @@ extern "C" void C_RustStream_destruct(
     RustStream *stream
 ) {
     stream->~RustStream();
+}
+
+class RustWStream : public SkWStream {
+    void *m_data;
+    size_t m_length;
+
+    bool (*m_write)(void *, const void *, size_t);
+    void (*m_flush)(void *);
+
+public:
+    RustWStream(
+        void* data,
+        bool (*write)(void *, const void *, size_t),
+        void (*flush)(void *)
+    ) :
+        m_data(data),
+        m_write(write),
+        m_flush(flush) 
+    {}
+
+    bool write(const void *buffer, size_t count) {
+        auto r = (this->m_write)(this->m_data, buffer, count);
+        if (r) {
+            this->m_length += count;
+        }
+        return r;
+    }
+
+    void flush() {
+        (this->m_flush)(this->m_data);
+    }
+
+    size_t bytesWritten() const {
+        return this->m_length;
+    }
+};
+
+extern "C" void C_RustWStream_construct(
+    RustWStream *out,
+    void *data,
+    bool (*write)(void *, const void *, size_t),
+    void (*flush)(void *)
+) {
+    new(out) RustWStream(data, write, flush);
+}
+
+extern "C" void C_RustWStream_destruct(RustWStream *stream) {
+    stream->~RustWStream();
 }

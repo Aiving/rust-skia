@@ -53,6 +53,9 @@ impl Configuration {
             if features.svg {
                 sources.push("src/svg.cpp".into());
             }
+            if features.webp_encode {
+                sources.push("src/webp-encode.cpp".into());
+            }
             sources
         };
 
@@ -78,12 +81,6 @@ pub fn generate_bindings(
         })
         .size_t_is_usize(true)
         .parse_callbacks(Box::new(ParseCallbacks))
-        .raw_line("#![allow(clippy::all)]")
-        // https://github.com/rust-lang/rust-bindgen/issues/1651
-        .raw_line("#![allow(unknown_lints)]")
-        .raw_line("#![allow(deref_nullptr)]")
-        // GrVkBackendContext contains u128 fields on macOS
-        .raw_line("#![allow(improper_ctypes)]")
         .allowlist_function("C_.*")
         .constified_enum(".*Mask")
         .constified_enum(".*Flags")
@@ -125,6 +122,11 @@ pub fn generate_bindings(
         .allowlist_type("VkPhysicalDeviceFeatures2").
         // m91: These functions are not actually implemented.
         blocklist_function("SkCustomTypefaceBuilder_setGlyph[123].*")
+        // m113: `SkUnicode` pulls in an impl block that forwards static functions that may not be
+        // linked into the final executable.
+        .blocklist_type("SkUnicode")
+        .raw_line("pub enum SkUnicode {}")
+
         // misc
         .allowlist_var("SK_Color.*")
         .allowlist_var("kAll_GrBackendState")
@@ -205,6 +207,14 @@ pub fn generate_bindings(
         cc_args.push(cpp17.into());
     }
 
+    // Disable RTTI. Otherwise RustWStream may cause compilation errors.
+    bindgen_args.push("-fno-rtti".into());
+    if target.builds_with_msvc() {
+        cc_args.push("/GR-".into());
+    } else {
+        cc_args.push("-fno-rtti".into());
+    }
+
     let target_str = &target.to_string();
     cc_build.target(target_str);
     bindgen_args.push(format!("--target={target_str}"));
@@ -248,9 +258,8 @@ pub fn generate_bindings(
         builder = builder.clang_args(bindgen_args);
 
         let bindings = builder.generate().expect("Unable to generate bindings");
-        let out_path = PathBuf::from("src");
         bindings
-            .write_to_file(out_path.join("bindings.rs"))
+            .write_to_file(output_directory.join("bindings.rs"))
             .expect("Couldn't write bindings!");
     }
 }
@@ -352,7 +361,9 @@ const OPAQUE_TYPES: &[&str] = &[
     "SkPicture_AbortCallback",
     "SkPixelRef_GenIDChangeListener",
     "SkRasterHandleAllocator",
-    "SkRefCnt",
+    // m114: Must keep `SkRefCnt`, because otherwise bindgen would add an additional vtable because
+    // of its newly introduced virtual functions.
+    // "SkRefCnt",
     "SkShader",
     "SkStream",
     "SkStreamAsset",
@@ -412,6 +423,10 @@ const OPAQUE_TYPES: &[&str] = &[
     "std::variant",
     // m111 Used in SkTextBlobBuilder
     "skia_private::AutoTMalloc",
+    // Pulled in by `SkData`.
+    "FILE",
+    // m114: Results in wrongly sized template specializations.
+    "skia_private::THashMap",
 ];
 
 const BLOCKLISTED_TYPES: &[&str] = &[
@@ -520,7 +535,7 @@ const ENUM_TABLE: &[EnumEntry] = &[
     // SkImage_*
     ("BitDepth", rewrite::k_xxx),
     ("CachingHint", rewrite::k_xxx_name),
-    ("CompressionType", rewrite::k_xxx),
+    ("SkTextureCompressionType", rewrite::k_xxx),
     // SkImageFilter_MapDirection
     ("MapDirection", rewrite::k_xxx_name),
     // SkCodec_Result
@@ -566,15 +581,13 @@ const ENUM_TABLE: &[EnumEntry] = &[
     ("GrGLFormat", rewrite::k_xxx),
     ("GrSurfaceOrigin", rewrite::k_xxx_name),
     ("GrBackendApi", rewrite::k_xxx),
-    ("GrMipmapped", rewrite::k_xxx),
-    ("GrRenderable", rewrite::k_xxx),
-    ("GrProtected", rewrite::k_xxx),
+    ("Mipmapped", rewrite::k_xxx),
+    ("Renderable", rewrite::k_xxx),
+    ("Protected", rewrite::k_xxx),
     //
     // DartTypes.h
     //
     ("Affinity", rewrite::k_xxx),
-    ("RectHeightStyle", rewrite::k_xxx),
-    ("RectWidthStyle", rewrite::k_xxx),
     ("TextAlign", rewrite::k_xxx),
     ("TextDirection", rewrite::k_xxx_uppercase),
     ("TextBaseline", rewrite::k_xxx),
@@ -586,7 +599,6 @@ const ENUM_TABLE: &[EnumEntry] = &[
     ("TextDecorationStyle", rewrite::k_xxx),
     ("TextDecorationMode", rewrite::k_xxx),
     ("StyleType", rewrite::k_xxx),
-    ("PlaceholderAlignment", rewrite::k_xxx),
     //
     // Vk*
     //
@@ -633,6 +645,13 @@ const ENUM_TABLE: &[EnumEntry] = &[
     ("ColorSpace", rewrite::k_xxx),
     // m109: SkGradientShader::Interpolation::HueMethod
     ("HueMethod", rewrite::k_xxx),
+    // SkCodecAnimation
+    ("DisposalMethod", rewrite::k_xxx),
+    ("Blend", rewrite::k_xxx),
+    // SkJpegEncoder.h
+    ("AlphaOption", rewrite::k_xxx),
+    // SkWebpEncoder.h
+    ("Compression", rewrite::k_xxx),
 ];
 
 pub(crate) mod rewrite {
@@ -764,6 +783,9 @@ pub(crate) mod definitions {
             files.extend(vec![
                 "obj/modules/skshaper/skshaper.ninja".into(),
                 "obj/modules/skparagraph/skparagraph.ninja".into(),
+                // shaper.cpp includes SkLoadICU.h
+                "obj/third_party/icu/icu.ninja".into(),
+                "obj/modules/skunicode/skunicode.ninja".into(),
             ]);
         }
         if features.svg {
